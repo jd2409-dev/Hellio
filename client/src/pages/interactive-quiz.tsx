@@ -318,65 +318,68 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-6">
-            <Button
-              onClick={handlePrevious}
-              disabled={currentQuestionIndex === 0}
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:border-nexus-green hover:text-nexus-green"
-            >
-              ← Previous
-            </Button>
+          {/* Navigation Section */}
+          <div className="pt-6">
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center">
+              {/* Previous Button */}
+              <Button
+                onClick={handlePrevious}
+                disabled={currentQuestionIndex === 0}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:border-nexus-green hover:text-nexus-green disabled:opacity-50"
+              >
+                ← Previous
+              </Button>
 
-            <div className="text-center">
-              <p className="text-slate-400 text-sm">
-                {Object.keys(userAnswers).length} of {totalQuestions} answered
-              </p>
-            </div>
-
-            <div className="flex space-x-3">
-              {/* Debug info */}
-              <div className="text-xs text-gray-500">
-                Q{currentQuestionIndex + 1}/{totalQuestions} | Answer: {userAnswers[currentQuestionIndex] ? 'Yes' : 'No'}
+              {/* Center Progress Info */}
+              <div className="text-center">
+                <p className="text-slate-400 text-sm">
+                  {Object.keys(userAnswers).length} of {totalQuestions} answered
+                </p>
               </div>
-              
-              {currentQuestionIndex === totalQuestions - 1 ? (
-                <Button
-                  onClick={handleSubmitQuiz}
-                  disabled={submitQuizMutation.isPending || !userAnswers[currentQuestionIndex]}
-                  className={`font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
-                    userAnswers[currentQuestionIndex] 
-                      ? 'bg-gradient-to-r from-nexus-green to-emerald-500 text-black'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {submitQuizMutation.isPending ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full mr-2"></div>
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      🎯 Submit Quiz
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <>
-                  {userAnswers[currentQuestionIndex] ? (
+
+              {/* Next/Submit Button */}
+              <div className="flex items-center space-x-3">
+                {currentQuestionIndex === totalQuestions - 1 ? (
+                  // Final question - Show Submit button
+                  userAnswers[currentQuestionIndex] && (
+                    <Button
+                      onClick={handleSubmitQuiz}
+                      disabled={submitQuizMutation.isPending}
+                      className="bg-gradient-to-r from-nexus-green to-emerald-500 text-black font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 animate-pulse"
+                    >
+                      {submitQuizMutation.isPending ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full mr-2"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          🎯 Submit Quiz
+                        </>
+                      )}
+                    </Button>
+                  )
+                ) : (
+                  // Regular question - Show Next button only when answered
+                  userAnswers[currentQuestionIndex] && (
                     <Button
                       onClick={handleNext}
-                      className="bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105 px-6 py-2 font-bold transition-all duration-200"
+                      className="bg-nexus-green text-black hover:bg-nexus-gold font-bold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform animate-fadeIn"
                     >
                       Next Question →
                     </Button>
-                  ) : (
-                    <div className="text-gray-400 text-sm px-4 py-2">
-                      Select an answer to continue
-                    </div>
-                  )}
-                </>
-              )}
+                  )
+                )}
+                
+                {/* Prompt when no answer selected */}
+                {!userAnswers[currentQuestionIndex] && (
+                  <div className="text-slate-400 text-sm italic px-4 py-2 border border-slate-600 rounded-lg bg-slate-800/30">
+                    {currentQuestionIndex === totalQuestions - 1 ? 'Select an answer to submit' : 'Select an answer to continue'}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
