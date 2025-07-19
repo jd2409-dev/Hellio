@@ -36,6 +36,10 @@ export default function Dashboard() {
     queryKey: ["/api/user/stats"],
   });
 
+  const { data: achievements } = useQuery({
+    queryKey: ["/api/user/achievements"],
+  });
+
   const initializeMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/initialize"),
     onSuccess: () => {
@@ -282,27 +286,50 @@ export default function Dashboard() {
 
         {/* Recent Achievements */}
         <div className="mb-12">
-          <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Recent Achievements</h2>
+          <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+            {achievements?.filter((a: any) => a.earned).length > 0 ? 'Your Achievements' : 'Available Achievements'}
+          </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { name: "Math Master", description: "Completed 100 math problems", icon: "fas fa-star", color: "from-amber-500 to-yellow-500" },
-              { name: "Study Streak", description: "47 days in a row", icon: "fas fa-fire", color: "from-orange-500 to-red-500" },
-              { name: "Quiz Champion", description: "Perfect score on 5 quizzes", icon: "fas fa-brain", color: "from-purple-500 to-pink-500" },
-              { name: "Knowledge Seeker", description: "Uploaded 10 textbooks", icon: "fas fa-book", color: "from-emerald-500 to-teal-500" }
-            ].map((achievement, index) => (
-              <Card key={index} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-all duration-300">
+            {achievements?.slice(0, 8).map((achievement: any) => (
+              <Card key={achievement.id} className={`bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm transition-all duration-300 ${
+                achievement.earned ? 'hover:border-amber-500/30' : 'opacity-75 hover:border-slate-600/30'
+              }`}>
                 <CardContent className="p-4 text-center">
-                  <div className={`w-16 h-16 bg-gradient-to-r ${achievement.color} rounded-full flex items-center justify-center mx-auto mb-3`}>
-                    <i className={`${achievement.icon} text-2xl text-white`}></i>
+                  <div className="w-16 h-16 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-3"
+                       style={{ 
+                         backgroundImage: achievement.earned 
+                           ? `linear-gradient(to right, ${achievement.color || '#FFD700'}, ${achievement.color || '#FFD700'}dd)` 
+                           : 'linear-gradient(to right, #64748b, #475569)'
+                       }}>
+                    <i className={`${achievement.icon || 'fas fa-trophy'} text-2xl text-white`}></i>
                   </div>
                   <h3 className="text-sm font-bold text-white mb-1">{achievement.name}</h3>
                   <p className="text-xs text-slate-400 mb-2">{achievement.description}</p>
-                  <Badge variant="outline" className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                    Earned
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      achievement.earned 
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                        : 'bg-slate-600/20 text-slate-400 border-slate-600/30'
+                    }`}
+                  >
+                    {achievement.earned ? 'Earned' : `+${achievement.xpReward} XP`}
                   </Badge>
                 </CardContent>
               </Card>
-            ))}
+            )) || (
+              // Loading skeleton
+              Array.from({length: 4}).map((_, index) => (
+                <Card key={index} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm animate-pulse">
+                  <CardContent className="p-4 text-center">
+                    <div className="w-16 h-16 bg-slate-600 rounded-full mx-auto mb-3"></div>
+                    <div className="h-4 bg-slate-600 rounded mb-2"></div>
+                    <div className="h-3 bg-slate-700 rounded mb-2"></div>
+                    <div className="h-6 bg-slate-700 rounded-full w-16 mx-auto"></div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </div>

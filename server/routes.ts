@@ -33,6 +33,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+      
+      // Award "First Steps" achievement to new users
+      if (user && !user.xp) {
+        const achievements = await storage.getAchievements();
+        const firstStepsAchievement = achievements.find(a => a.name === 'First Steps');
+        if (firstStepsAchievement) {
+          const userAchievements = await storage.getUserAchievements(userId);
+          const hasFirstSteps = userAchievements.some(ua => ua.achievementId === firstStepsAchievement.id);
+          if (!hasFirstSteps) {
+            await storage.unlockAchievement(userId, firstStepsAchievement.id);
+            // Award initial XP and coins
+            await storage.upsertUser({
+              ...user,
+              xp: 100,
+              coins: 50,
+              level: 1,
+            });
+          }
+        }
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -307,6 +328,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Stats error:", error);
       res.status(500).json({ message: "Failed to fetch user stats" });
+    }
+  });
+
+  // User achievements endpoint
+  app.get('/api/user/achievements', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userAchievements = await storage.getUserAchievements(userId);
+      const allAchievements = await storage.getAchievements();
+      
+      // Add earned status to achievements
+      const achievementsWithStatus = allAchievements.map(achievement => ({
+        ...achievement,
+        earned: userAchievements.some(ua => ua.achievementId === achievement.id),
+        unlockedAt: userAchievements.find(ua => ua.achievementId === achievement.id)?.unlockedAt || null,
+      }));
+
+      res.json(achievementsWithStatus);
+    } catch (error) {
+      console.error("User achievements error:", error);
+      res.status(500).json({ message: "Failed to fetch achievements" });
     }
   });
 
