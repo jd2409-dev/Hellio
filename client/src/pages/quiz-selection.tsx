@@ -42,11 +42,9 @@ const ALL_SUBJECTS = [
   { id: 'political-science', name: 'Political Science', icon: 'fas fa-balance-scale', color: '#FDCB6E', description: 'Government and politics' },
   { id: 'economics', name: 'Economics', icon: 'fas fa-chart-line', color: '#00CEC9', description: 'Markets and finance' },
   { id: 'sociology', name: 'Sociology', icon: 'fas fa-users', color: '#E84393', description: 'Society and behavior' },
-  { id: 'psychology', name: 'Psychology', icon: 'fas fa-brain', color: '#6C5CE7', description: 'Mind and behavior' },
   
   // Business & Commerce
   { id: 'business-studies', name: 'Business Studies', icon: 'fas fa-briefcase', color: '#E17055', description: 'Commerce and management' },
-  { id: 'philosophy', name: 'Philosophy', icon: 'fas fa-lightbulb', color: '#6C5CE7', description: 'Fundamental questions and logic' },
 ];
 
 // Difficulty levels with descriptions
