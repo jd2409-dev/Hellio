@@ -123,7 +123,7 @@ export default function AITutor() {
                   <i className="fas fa-robot text-white"></i>
                 </div>
               )}
-              <Card className={`max-w-md ${message.role === 'user' ? 'bg-nexus-green text-black' : 'glass-effect'}`}>
+              <Card className={`max-w-md ${message.role === 'user' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'glass-effect'}`}>
                 <CardContent className="p-4">
                   <p className="whitespace-pre-wrap">{message.content}</p>
                   <div className="text-xs opacity-60 mt-2">
