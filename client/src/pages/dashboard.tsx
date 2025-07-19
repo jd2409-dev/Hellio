@@ -234,47 +234,75 @@ export default function Dashboard() {
         </div>
 
         {/* Subject Modules */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-6 font-orbitron">Your Subjects</h2>
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Your Subjects</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(subjects && subjects.length > 0 ? subjects : defaultSubjects).map((subject: any) => (
-              <SubjectCard
-                key={subject.id}
-                subject={subject}
-                progress={subject.progress || Math.floor(Math.random() * 40) + 60}
-              />
-            ))}
+            {(subjects && subjects.length > 0 ? subjects : defaultSubjects).map((subject: any) => {
+              const progress = subject.progress || Math.floor(Math.random() * 40) + 60;
+              return (
+                <Link key={subject.id} href={`/subject/${subject.id}`}>
+                  <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div 
+                            className="w-12 h-12 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${subject.color || '#10B981'}20` }}
+                          >
+                            <i 
+                              className={`${subject.icon || 'fas fa-book'} text-xl`}
+                              style={{ color: subject.color || '#10B981' }}
+                            ></i>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-white">{subject.name}</h3>
+                            <p className="text-sm text-slate-400">{subject.description}</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-white transition-colors" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-400">Progress</span>
+                          <span className="text-sm font-semibold text-white">{progress}%</span>
+                        </div>
+                        <Progress 
+                          value={progress} 
+                          className="h-2 bg-slate-700"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         {/* Recent Achievements */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-6 font-orbitron">Recent Achievements</h2>
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Recent Achievements</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AchievementCard
-              name="Math Master"
-              description="Completed 100 math problems"
-              icon="fas fa-star"
-              color="from-nexus-gold to-yellow-500"
-            />
-            <AchievementCard
-              name="Study Streak"
-              description="7 days in a row"
-              icon="fas fa-fire"
-              color="from-nexus-green to-green-500"
-            />
-            <AchievementCard
-              name="Quiz Champion"
-              description="Perfect score on 5 quizzes"
-              icon="fas fa-brain"
-              color="from-purple-500 to-nexus-green"
-            />
-            <AchievementCard
-              name="Knowledge Seeker"
-              description="Uploaded 10 textbooks"
-              icon="fas fa-book"
-              color="from-nexus-gold to-orange-500"
-            />
+            {[
+              { name: "Math Master", description: "Completed 100 math problems", icon: "fas fa-star", color: "from-amber-500 to-yellow-500" },
+              { name: "Study Streak", description: "47 days in a row", icon: "fas fa-fire", color: "from-orange-500 to-red-500" },
+              { name: "Quiz Champion", description: "Perfect score on 5 quizzes", icon: "fas fa-brain", color: "from-purple-500 to-pink-500" },
+              { name: "Knowledge Seeker", description: "Uploaded 10 textbooks", icon: "fas fa-book", color: "from-emerald-500 to-teal-500" }
+            ].map((achievement, index) => (
+              <Card key={index} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-all duration-300">
+                <CardContent className="p-4 text-center">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${achievement.color} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                    <i className={`${achievement.icon} text-2xl text-white`}></i>
+                  </div>
+                  <h3 className="text-sm font-bold text-white mb-1">{achievement.name}</h3>
+                  <p className="text-xs text-slate-400 mb-2">{achievement.description}</p>
+                  <Badge variant="outline" className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                    Earned
+                  </Badge>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </div>
