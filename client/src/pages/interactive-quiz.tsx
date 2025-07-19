@@ -71,6 +71,7 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
 
   const handleAnswerSelect = (answer: string) => {
+    console.log('Answer selected:', answer, 'for question', currentQuestionIndex);
     setUserAnswers(prev => ({
       ...prev,
       [currentQuestionIndex]: answer
@@ -254,16 +255,19 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
               {getAnswerOptions().map((option, index) => {
                 const isSelected = userAnswers[currentQuestionIndex] === option;
                 return (
-                  <Card
+                  <div
                     key={index}
-                    className={`cursor-pointer transition-all duration-200 border-2 transform hover:scale-[1.02] ${
+                    className={`cursor-pointer transition-all duration-200 border-2 transform hover:scale-[1.02] rounded-lg ${
                       isSelected
                         ? 'border-nexus-green bg-gradient-to-r from-nexus-green/20 to-emerald-500/20 shadow-xl shadow-nexus-green/20'
                         : 'border-slate-600 bg-slate-800/50 hover:border-nexus-green/50 hover:bg-slate-700/50'
                     }`}
-                    onClick={() => handleAnswerSelect(option)}
+                    onClick={() => {
+                      console.log('Clicked option:', option);
+                      handleAnswerSelect(option);
+                    }}
                   >
-                    <CardContent className="p-4">
+                    <div className="p-4">
                       <div className="flex items-start space-x-3">
                         {/* Radio button indicator */}
                         <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 transition-all duration-200 ${
@@ -296,35 +300,41 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                             {option}
                           </span>
                           {isSelected && (
-                            <span className="ml-2 text-nexus-green">
+                            <span className="ml-2 text-nexus-green text-xl">
                               ✓
                             </span>
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+          <div className="flex justify-between items-center pt-6">
             <Button
               onClick={handlePrevious}
               disabled={currentQuestionIndex === 0}
               variant="outline"
-              className="border-slate-600 text-slate-300"
+              className="border-slate-600 text-slate-300 hover:border-nexus-green hover:text-nexus-green"
             >
-              Previous
+              ← Previous
             </Button>
 
-            <div className="flex space-x-2">
+            <div className="text-center">
+              <p className="text-slate-400 text-sm">
+                {Object.keys(userAnswers).length} of {totalQuestions} answered
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
               {currentQuestionIndex === totalQuestions - 1 ? (
                 <Button
                   onClick={handleSubmitQuiz}
-                  disabled={!userAnswers[currentQuestionIndex] || submitQuizMutation.isPending}
-                  className="bg-gradient-to-r from-nexus-green to-emerald-500 text-black font-bold"
+                  disabled={submitQuizMutation.isPending}
+                  className="bg-gradient-to-r from-nexus-green to-emerald-500 text-black font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   {submitQuizMutation.isPending ? (
                     <>
@@ -332,16 +342,22 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                       Submitting...
                     </>
                   ) : (
-                    'Submit Quiz'
+                    <>
+                      🎯 Submit Quiz
+                    </>
                   )}
                 </Button>
               ) : (
                 <Button
                   onClick={handleNext}
                   disabled={!userAnswers[currentQuestionIndex]}
-                  className="bg-nexus-green text-black hover:bg-nexus-gold"
+                  className={`px-6 py-2 font-bold transition-all duration-200 ${
+                    userAnswers[currentQuestionIndex]
+                      ? 'bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
-                  Next
+                  Next →
                 </Button>
               )}
             </div>
