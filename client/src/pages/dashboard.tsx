@@ -3,10 +3,25 @@ import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import GamificationStats from "@/components/gamification-stats";
-import SubjectCard from "@/components/subject-card";
-import AchievementCard from "@/components/achievement-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Brain, 
+  BookOpen, 
+  Trophy, 
+  Target, 
+  Zap, 
+  TrendingUp, 
+  Calendar,
+  Clock,
+  Award,
+  Star,
+  ChevronRight,
+  BarChart3,
+  Users,
+  LogOut
+} from "lucide-react";
 
 export default function Dashboard() {
   const { data: user } = useQuery({
@@ -45,27 +60,47 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-nexus-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Top Navigation */}
-      <nav className="glass-effect border-b border-gray-700 p-4 sticky top-0 z-40">
+      <nav className="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/50 p-4 sticky top-0 z-40">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="font-orbitron text-xl font-bold text-nexus-green">NexusLearn AI</div>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-lg flex items-center justify-center">
+              <Brain className="h-5 w-5 text-white" />
+            </div>
+            <div className="font-orbitron text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+              NexusLearn AI
+            </div>
+          </div>
           
           <div className="flex items-center space-x-6">
-            <GamificationStats 
-              xp={userStats?.xp || 2450}
-              coins={userStats?.coins || 1280}
-              level={userStats?.level || 12}
-            />
-            <div className="w-10 h-10 bg-gradient-to-r from-nexus-green to-nexus-gold rounded-full flex items-center justify-center cursor-pointer">
-              <i className="fas fa-user text-black"></i>
+            {/* User Stats */}
+            <div className="flex items-center space-x-4 bg-slate-700/50 rounded-lg px-4 py-2">
+              <div className="flex items-center space-x-2">
+                <Star className="h-4 w-4 text-emerald-400" />
+                <span className="text-sm font-semibold">{userStats?.xp || 2450} XP</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-amber-400 rounded-full"></div>
+                <span className="text-sm font-semibold">{userStats?.coins || 1280}</span>
+              </div>
+              <Badge variant="outline" className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                Level {userStats?.level || 12}
+              </Badge>
             </div>
+            
+            {/* Profile */}
+            <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full flex items-center justify-center cursor-pointer">
+              <span className="text-white font-semibold text-sm">{user?.firstName?.[0] || 'U'}</span>
+            </div>
+            
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={handleLogout}
-              className="border-gray-600 text-gray-400 hover:border-red-500 hover:text-red-500"
+              className="text-slate-300 hover:text-red-400 hover:bg-red-500/10"
             >
-              Logout
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -73,73 +108,90 @@ export default function Dashboard() {
 
       {/* Dashboard Content */}
       <div className="container mx-auto px-6 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="font-orbitron text-4xl font-bold mb-4">
-            Welcome back, <span className="text-nexus-green">{user?.firstName || "Student"}</span>!
-          </h1>
-          <p className="text-gray-400 text-lg">Ready to continue your learning journey? You're doing amazing!</p>
+        {/* Welcome Header */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-5xl font-orbitron font-bold mb-4 bg-gradient-to-r from-white via-emerald-200 to-teal-200 bg-clip-text text-transparent">
+                Welcome back, {user?.firstName || 'Student'}!
+              </h1>
+              <p className="text-xl text-slate-400">Ready to continue your learning journey?</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-white mb-1">Day 47</div>
+              <div className="text-sm text-slate-400">Learning Streak 🔥</div>
+            </div>
+          </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="glass-effect neon-border">
+        <div className="grid md:grid-cols-4 gap-6 mb-12">
+          <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-orange-500/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <i className="fas fa-fire text-3xl text-orange-500"></i>
-                <span className="text-2xl font-bold text-nexus-green">{userStats?.studyStreak || 7}</span>
+                <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-orange-400" />
+                </div>
+                <span className="text-3xl font-bold text-orange-400">{userStats?.studyStreak || 47}</span>
               </div>
-              <h3 className="text-lg font-semibold">Study Streak</h3>
-              <p className="text-gray-400">Days in a row</p>
+              <h3 className="text-lg font-semibold text-white">Study Streak</h3>
+              <p className="text-slate-400 text-sm">Days in a row</p>
             </CardContent>
           </Card>
           
-          <Card className="glass-effect neon-border">
+          <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <i className="fas fa-trophy text-3xl text-nexus-gold"></i>
-                <span className="text-2xl font-bold text-nexus-gold">{userStats?.totalAchievements || 15}</span>
+                <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-amber-400" />
+                </div>
+                <span className="text-3xl font-bold text-amber-400">{userStats?.totalAchievements || 15}</span>
               </div>
-              <h3 className="text-lg font-semibold">Achievements</h3>
-              <p className="text-gray-400">Unlocked</p>
+              <h3 className="text-lg font-semibold text-white">Achievements</h3>
+              <p className="text-slate-400 text-sm">Unlocked</p>
             </CardContent>
           </Card>
           
-          <Card className="glass-effect neon-border">
+          <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <i className="fas fa-chart-line text-3xl text-nexus-green"></i>
-                <span className="text-2xl font-bold text-nexus-green">78%</span>
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-emerald-400" />
+                </div>
+                <span className="text-3xl font-bold text-emerald-400">89%</span>
               </div>
-              <h3 className="text-lg font-semibold">Overall Progress</h3>
-              <p className="text-gray-400">This semester</p>
+              <h3 className="text-lg font-semibold text-white">Overall Progress</h3>
+              <p className="text-slate-400 text-sm">This semester</p>
             </CardContent>
           </Card>
           
-          <Card className="glass-effect neon-border">
+          <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <i className="fas fa-clock text-3xl text-blue-400"></i>
-                <span className="text-2xl font-bold text-blue-400">4.2h</span>
+                <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-blue-400" />
+                </div>
+                <span className="text-3xl font-bold text-blue-400">12.4h</span>
               </div>
-              <h3 className="text-lg font-semibold">Study Time</h3>
-              <p className="text-gray-400">This week</p>
+              <h3 className="text-lg font-semibold text-white">Study Time</h3>
+              <p className="text-slate-400 text-sm">This week</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Action Cards */}
-        <div className="grid lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid lg:grid-cols-3 gap-8 mb-12">
           {/* AI Tutor */}
           <Link href="/ai-tutor">
-            <Card className="glass-effect neon-border cursor-pointer hover:scale-105 transition-all duration-300 group">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
               <CardContent className="p-8 text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-nexus-green to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:animate-glow">
-                  <i className="fas fa-robot text-3xl text-white"></i>
+                <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Brain className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">AI Tutor</h3>
-                <p className="text-gray-400 mb-6">Get instant help with any question using advanced AI</p>
-                <Button className="bg-nexus-green text-black hover:bg-nexus-gold">
+                <p className="text-slate-400 mb-6">Get instant help with any question using advanced AI</p>
+                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 w-full">
+                  <Zap className="mr-2 h-4 w-4" />
                   Start Chat
                 </Button>
               </CardContent>
@@ -148,14 +200,15 @@ export default function Dashboard() {
 
           {/* Upload Textbook */}
           <Link href="/textbook-upload">
-            <Card className="glass-effect neon-border cursor-pointer hover:scale-105 transition-all duration-300 group">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
               <CardContent className="p-8 text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-nexus-gold to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:gold-glow">
-                  <i className="fas fa-upload text-3xl text-white"></i>
+                <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <BookOpen className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">Upload Textbook</h3>
-                <p className="text-gray-400 mb-6">Upload PDFs and get AI-powered content analysis</p>
-                <Button className="bg-nexus-gold text-black hover:bg-nexus-green">
+                <p className="text-slate-400 mb-6">Upload PDFs and get AI-powered content analysis</p>
+                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 w-full">
+                  <Target className="mr-2 h-4 w-4" />
                   Upload Now
                 </Button>
               </CardContent>
@@ -164,14 +217,15 @@ export default function Dashboard() {
 
           {/* Take Quiz */}
           <Link href="/quiz-selection">
-            <Card className="glass-effect neon-border cursor-pointer hover:scale-105 transition-all duration-300 group">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
               <CardContent className="p-8 text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-nexus-green rounded-full flex items-center justify-center mx-auto mb-6 group-hover:animate-glow">
-                  <i className="fas fa-question-circle text-3xl text-white"></i>
+                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Trophy className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">Smart Quizzes</h3>
-                <p className="text-gray-400 mb-6">Adaptive quizzes that adjust to your skill level</p>
-                <Button className="bg-purple-500 text-white hover:bg-nexus-green">
+                <p className="text-slate-400 mb-6">Adaptive quizzes that adjust to your skill level</p>
+                <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 w-full">
+                  <BarChart3 className="mr-2 h-4 w-4" />
                   Take Quiz
                 </Button>
               </CardContent>
