@@ -72,10 +72,14 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
 
   const handleAnswerSelect = (answer: string) => {
     console.log('Answer selected:', answer, 'for question', currentQuestionIndex);
-    setUserAnswers(prev => ({
-      ...prev,
-      [currentQuestionIndex]: answer
-    }));
+    setUserAnswers(prev => {
+      const newAnswers = {
+        ...prev,
+        [currentQuestionIndex]: answer
+      };
+      console.log('Updated userAnswers:', newAnswers);
+      return newAnswers;
+    });
   };
 
   const handleNext = () => {
@@ -331,6 +335,11 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
             </div>
 
             <div className="flex space-x-3">
+              {/* Debug info */}
+              <div className="text-xs text-gray-500">
+                Q{currentQuestionIndex + 1}/{totalQuestions} | Answer: {userAnswers[currentQuestionIndex] ? 'Yes' : 'No'}
+              </div>
+              
               {currentQuestionIndex === totalQuestions - 1 ? (
                 <Button
                   onClick={handleSubmitQuiz}
@@ -353,14 +362,20 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                   )}
                 </Button>
               ) : (
-                userAnswers[currentQuestionIndex] && (
-                  <Button
-                    onClick={handleNext}
-                    className="bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105 px-6 py-2 font-bold transition-all duration-200"
-                  >
-                    Next Question →
-                  </Button>
-                )
+                <>
+                  {userAnswers[currentQuestionIndex] ? (
+                    <Button
+                      onClick={handleNext}
+                      className="bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105 px-6 py-2 font-bold transition-all duration-200"
+                    >
+                      Next Question →
+                    </Button>
+                  ) : (
+                    <div className="text-gray-400 text-sm px-4 py-2">
+                      Select an answer to continue
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
