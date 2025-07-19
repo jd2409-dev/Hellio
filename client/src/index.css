@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --background: hsl(0, 0%, 0%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(144, 58%, 55%);
+  --primary-foreground: hsl(0, 0%, 0%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(51, 100%, 50%);
+  --accent-foreground: hsl(0, 0%, 0%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+  
+  /* NexusLearn Custom Colors */
+  --nexus-black: hsl(0, 0%, 0%);
+  --nexus-green: hsl(144, 58%, 55%);
+  --nexus-gold: hsl(51, 100%, 50%);
+  --nexus-dark: hsl(0, 0%, 7%);
+  --nexus-gray: hsl(0, 0%, 12%);
+  --nexus-light-gray: hsl(0, 0%, 16%);
+}
+
+.dark {
+  --background: hsl(0, 0%, 0%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(144, 58%, 55%);
+  --primary-foreground: hsl(0, 0%, 0%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(51, 100%, 50%);
+  --accent-foreground: hsl(0, 0%, 0%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .font-orbitron {
+    font-family: 'Orbitron', monospace;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    background: rgba(30, 30, 30, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(80, 200, 120, 0.2);
+  }
+  
+  .neon-border {
+    border: 1px solid hsl(var(--nexus-green));
+    box-shadow: 0 0 10px rgba(80, 200, 120, 0.3);
+  }
+  
+  .gold-glow {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
+  
+  .nexus-gradient {
+    background: linear-gradient(135deg, hsl(var(--nexus-green)), hsl(var(--nexus-gold)));
+  }
+  
+  .text-nexus-green {
+    color: hsl(var(--nexus-green));
+  }
+  
+  .text-nexus-gold {
+    color: hsl(var(--nexus-gold));
+  }
+  
+  .bg-nexus-green {
+    background-color: hsl(var(--nexus-green));
+  }
+  
+  .bg-nexus-gold {
+    background-color: hsl(var(--nexus-gold));
+  }
+  
+  .bg-nexus-dark {
+    background-color: hsl(var(--nexus-dark));
+  }
+  
+  .bg-nexus-gray {
+    background-color: hsl(var(--nexus-gray));
+  }
+  
+  .border-nexus-green {
+    border-color: hsl(var(--nexus-green));
+  }
+  
+  .border-nexus-gold {
+    border-color: hsl(var(--nexus-gold));
+  }
+}
+
+@keyframes glow {
+  from { 
+    box-shadow: 0 0 20px hsl(var(--nexus-green)); 
+  }
+  to { 
+    box-shadow: 0 0 30px hsl(var(--nexus-green)), 0 0 40px hsl(var(--nexus-green)); 
+  }
+}
+
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px); 
+  }
+  50% { 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(-100%); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1; 
+  }
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.5s ease-out;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--nexus-gray));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--nexus-green));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--nexus-gold));
+}

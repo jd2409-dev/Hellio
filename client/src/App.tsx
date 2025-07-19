@@ -1,0 +1,60 @@
+import { Switch, Route } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import Landing from "@/pages/landing";
+import Dashboard from "@/pages/dashboard";
+import AITutor from "@/pages/ai-tutor";
+import TextbookUpload from "@/pages/textbook-upload";
+import QuizSelection from "@/pages/quiz-selection";
+import SubjectDetail from "@/pages/subject-detail";
+import NotFound from "@/pages/not-found";
+
+function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-nexus-black">
+        <div className="glass-effect p-8 rounded-2xl">
+          <div className="animate-spin w-8 h-8 border-2 border-nexus-green border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-nexus-green">Loading NexusLearn AI...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Switch>
+      {!isAuthenticated ? (
+        <Route path="/" component={Landing} />
+      ) : (
+        <>
+          <Route path="/" component={Dashboard} />
+          <Route path="/ai-tutor" component={AITutor} />
+          <Route path="/textbook-upload" component={TextbookUpload} />
+          <Route path="/quiz-selection" component={QuizSelection} />
+          <Route path="/subject/:id" component={SubjectDetail} />
+        </>
+      )}
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <div className="dark">
+          <Toaster />
+          <Router />
+        </div>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
