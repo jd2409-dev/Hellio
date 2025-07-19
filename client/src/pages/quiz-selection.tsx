@@ -24,7 +24,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-// Comprehensive subject list
+// Core academic subjects
 const ALL_SUBJECTS = [
   // Core Sciences
   { id: 'physics', name: 'Physics', icon: 'fas fa-atom', color: '#FF6B6B', description: 'Laws of nature and universe' },
@@ -35,13 +35,6 @@ const ALL_SUBJECTS = [
   // Applied Sciences
   { id: 'computer-science', name: 'Computer Science', icon: 'fas fa-laptop-code', color: '#FFEAA7', description: 'Programming and algorithms' },
   { id: 'environmental-science', name: 'Environmental Science', icon: 'fas fa-leaf', color: '#55A3FF', description: 'Environment and sustainability' },
-  { id: 'earth-science', name: 'Earth Science', icon: 'fas fa-globe', color: '#6C5CE7', description: 'Planet Earth and geology' },
-  
-  // Languages & Literature
-  { id: 'english', name: 'English', icon: 'fas fa-book-open', color: '#FD79A8', description: 'Language and literature' },
-  { id: 'hindi', name: 'Hindi', icon: 'fas fa-language', color: '#E17055', description: 'Hindi language and literature' },
-  { id: 'spanish', name: 'Spanish', icon: 'fas fa-globe-americas', color: '#00B894', description: 'Spanish language' },
-  { id: 'french', name: 'French', icon: 'fas fa-flag', color: '#74B9FF', description: 'French language' },
   
   // Social Studies
   { id: 'history', name: 'History', icon: 'fas fa-landmark', color: '#A29BFE', description: 'Past events and civilizations' },
@@ -51,15 +44,9 @@ const ALL_SUBJECTS = [
   { id: 'sociology', name: 'Sociology', icon: 'fas fa-users', color: '#E84393', description: 'Society and behavior' },
   { id: 'psychology', name: 'Psychology', icon: 'fas fa-brain', color: '#6C5CE7', description: 'Mind and behavior' },
   
-  // Arts & Creative
-  { id: 'art', name: 'Art & Design', icon: 'fas fa-palette', color: '#FF7675', description: 'Visual arts and creativity' },
-  { id: 'music', name: 'Music', icon: 'fas fa-music', color: '#74B9FF', description: 'Musical theory and practice' },
-  { id: 'drama', name: 'Drama & Theatre', icon: 'fas fa-theater-masks', color: '#A29BFE', description: 'Performance and literature' },
-  
-  // Practical & Life Skills
-  { id: 'physical-education', name: 'Physical Education', icon: 'fas fa-running', color: '#00B894', description: 'Health and fitness' },
+  // Business & Commerce
   { id: 'business-studies', name: 'Business Studies', icon: 'fas fa-briefcase', color: '#E17055', description: 'Commerce and management' },
-  { id: 'philosophy', name: 'Philosophy', icon: 'fas fa-thinking-head', color: '#6C5CE7', description: 'Fundamental questions' },
+  { id: 'philosophy', name: 'Philosophy', icon: 'fas fa-lightbulb', color: '#6C5CE7', description: 'Fundamental questions and logic' },
 ];
 
 // Difficulty levels with descriptions
@@ -258,10 +245,10 @@ export default function QuizSelection() {
         <div className="mb-12">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-white mb-2">Step 1: Choose Your Subject</h2>
-            <p className="text-slate-400">Select from our comprehensive collection of subjects</p>
+            <p className="text-slate-400">Select from our core academic subjects</p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {ALL_SUBJECTS.map((subject) => (
               <button
                 key={subject.id}
