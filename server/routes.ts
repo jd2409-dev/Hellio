@@ -304,9 +304,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/quizzes/generate', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { subject, difficulty = 'medium', numQuestions = 10, topic } = req.body;
+      const { subject, difficulty = 'medium', numQuestions = 10, topic, grade, gradeName, questionType, marks } = req.body;
 
-      const quiz = await generateQuiz(subject, difficulty, numQuestions, topic);
+      const quiz = await generateQuiz(subject, difficulty, numQuestions, topic, {
+        grade,
+        gradeName,
+        questionType,
+        marks
+      });
 
       // Save quiz to database
       const savedQuiz = await storage.createQuiz({

@@ -23,39 +23,46 @@ export async function generateQuiz(
   difficulty: 'easy' | 'medium' | 'hard',
   numQuestions: number = 10,
   topic?: string,
-  questionType?: string,
-  textbookContent?: string
+  options?: {
+    questionType?: string,
+    textbookContent?: string,
+    grade?: number,
+    gradeName?: string,
+    marks?: string
+  }
 ): Promise<GeneratedQuiz> {
   try {
+    const { questionType, textbookContent, grade, gradeName, marks } = options || {};
+    const gradeContext = grade && gradeName ? ` appropriate for ${gradeName} students` : '';
     let prompt = '';
     
     if (questionType) {
       switch (questionType) {
         case '2-marks':
-          prompt = `Generate ${numQuestions} short answer questions (2 marks each) for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          prompt = `Generate ${numQuestions} short answer questions (2 marks each) for ${subject}${topic ? ` focusing on ${topic}` : ''}${gradeContext}${textbookContent ? ' based on the provided textbook content' : ''}.
           
           Each question should:
           - Be answerable in 2-3 sentences
-          - Test basic understanding and concepts
+          - Test basic understanding and concepts${gradeContext ? ` at ${gradeName} level` : ''}
           - Have a model answer of 30-50 words
           - Be worth 2 marks`;
           break;
           
         case 'mcq':
-          prompt = `Generate ${numQuestions} multiple choice questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          prompt = `Generate ${numQuestions} multiple choice questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${gradeContext}${textbookContent ? ' based on the provided textbook content' : ''}.
           
           Each question should have:
           - 4 options (A, B, C, D)
           - Only one correct answer
-          - Clear and concise options
-          - Educational value`;
+          - Clear and concise options${gradeContext ? ` suitable for ${gradeName} level` : ''}
+          - Educational value and age-appropriate content`;
           break;
           
         case 'assertion-reason':
-          prompt = `Generate ${numQuestions} assertion-reason type questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          prompt = `Generate ${numQuestions} assertion-reason type questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${gradeContext}${textbookContent ? ' based on the provided textbook content' : ''}.
           
           Each question should have:
-          - An assertion statement
+          - An assertion statement${gradeContext ? ` appropriate for ${gradeName} level` : ''}
           - A reason statement
           - 4 options: (A) Both assertion and reason are true, reason is correct explanation (B) Both true, reason not correct explanation (C) Assertion true, reason false (D) Both false`;
           break;

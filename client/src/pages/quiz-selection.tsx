@@ -74,6 +74,22 @@ const DIFFICULTY_LEVELS = [
   }
 ];
 
+// Grade levels
+const GRADE_LEVELS = [
+  { id: 1, name: 'Grade 1', description: 'Primary foundational level' },
+  { id: 2, name: 'Grade 2', description: 'Basic elementary concepts' },
+  { id: 3, name: 'Grade 3', description: 'Elementary level' },
+  { id: 4, name: 'Grade 4', description: 'Upper elementary' },
+  { id: 5, name: 'Grade 5', description: 'Middle elementary' },
+  { id: 6, name: 'Grade 6', description: 'Pre-secondary level' },
+  { id: 7, name: 'Grade 7', description: 'Lower secondary' },
+  { id: 8, name: 'Grade 8', description: 'Middle secondary' },
+  { id: 9, name: 'Grade 9', description: 'Upper secondary foundation' },
+  { id: 10, name: 'Grade 10', description: 'Secondary board level' },
+  { id: 11, name: 'Grade 11', description: 'Pre-university level' },
+  { id: 12, name: 'Grade 12', description: 'University entrance level' },
+];
+
 // Question types with marks
 const QUESTION_TYPES = [
   { 
@@ -139,6 +155,7 @@ export default function QuizSelection() {
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedQuestionType, setSelectedQuestionType] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<number>(0);
   const [numQuestions, setNumQuestions] = useState<number>(10);
   const [generatedQuiz, setGeneratedQuiz] = useState<any>(null);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -150,14 +167,18 @@ export default function QuizSelection() {
       if (!selectedSubject) throw new Error("Please select a subject");
       if (!selectedDifficulty) throw new Error("Please select difficulty level");
       if (!selectedQuestionType) throw new Error("Please select question type");
+      if (!selectedGrade) throw new Error("Please select a grade level");
       
       const selectedSubjectData = ALL_SUBJECTS.find(s => s.id === selectedSubject);
       const questionTypeData = QUESTION_TYPES.find(qt => qt.id === selectedQuestionType);
+      const selectedGradeData = GRADE_LEVELS.find(g => g.id === selectedGrade);
       
       const response = await apiRequest("POST", "/api/quizzes/generate", {
         subject: selectedSubjectData?.name || selectedSubject,
         difficulty: selectedDifficulty,
         questionType: selectedQuestionType,
+        grade: selectedGrade,
+        gradeName: selectedGradeData?.name,
         numQuestions: numQuestions,
         marks: questionTypeData?.marks,
       });
@@ -205,7 +226,7 @@ export default function QuizSelection() {
     });
   };
 
-  const canStartQuiz = selectedSubject && selectedDifficulty && selectedQuestionType;
+  const canStartQuiz = selectedSubject && selectedDifficulty && selectedGrade && selectedQuestionType;
 
   if (showQuiz && generatedQuiz) {
     return (
@@ -315,11 +336,48 @@ export default function QuizSelection() {
           </div>
         )}
 
-        {/* Step 3: Question Type Selection */}
+        {/* Step 3: Grade Level Selection */}
         {selectedSubject && selectedDifficulty && (
           <div className="mb-12">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Step 3: Choose Question Type</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Step 3: Select Grade Level</h2>
+              <p className="text-slate-400">Choose your current grade or target grade level</p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {GRADE_LEVELS.map((grade) => (
+                <button
+                  key={grade.id}
+                  onClick={() => setSelectedGrade(grade.id)}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 text-left ${
+                    selectedGrade === grade.id
+                      ? 'border-nexus-green bg-nexus-green/20 shadow-lg scale-105'
+                      : 'border-slate-600 bg-slate-800/50 hover:border-slate-400'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-400">{grade.id}</span>
+                    </div>
+                    <h3 className="font-bold text-white text-sm">{grade.name}</h3>
+                    <p className="text-xs text-slate-400 mt-1">{grade.description}</p>
+                    {selectedGrade === grade.id && (
+                      <Badge className="mt-2 bg-nexus-green/20 text-nexus-green border-nexus-green/30">
+                        Selected ✓
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Question Type Selection */}
+        {selectedSubject && selectedDifficulty && selectedGrade && (
+          <div className="mb-12">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Step 4: Choose Question Type</h2>
               <p className="text-slate-400">Select the format that matches your exam pattern</p>
             </div>
             
