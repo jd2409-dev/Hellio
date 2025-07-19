@@ -167,7 +167,7 @@ export default function Landing() {
                     onClick={handleAuth}
                     className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/25"
                   >
-                    Start Free Trial
+                    Start Now
                   </Button>
                 </div>
               </div>
