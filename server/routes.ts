@@ -163,23 +163,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
       const { subjectId } = req.body;
 
+      console.log('Textbook upload attempt:', {
+        userId,
+        fileSize: file?.size,
+        fileName: file?.originalname,
+        subjectId
+      });
+
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Extract text from PDF
-      const extractedText = await extractTextFromPDF(file.buffer, file.originalname);
-
-      // Save textbook record
+      // Save initial textbook record without extracted text first
       const textbook = await storage.createTextbook({
         userId,
         filename: `${Date.now()}_${file.originalname}`,
         originalName: file.originalname,
         subjectId: subjectId ? parseInt(subjectId) : null,
-        extractedText,
+        extractedText: null, // Process separately to avoid timeout
       });
 
-      res.json(textbook);
+      console.log('Textbook saved to database:', textbook.id);
+
+      // Process PDF in background (can take time)
+      try {
+        console.log('Starting PDF text extraction...');
+        const extractedText = await extractTextFromPDF(file.buffer, file.originalname);
+        console.log('PDF text extracted, length:', extractedText?.length);
+        
+        // Update textbook with extracted text
+        const updatedTextbook = await storage.updateTextbook(textbook.id, {
+          extractedText,
+        });
+
+        console.log('Textbook updated with extracted text');
+        res.json(updatedTextbook);
+      } catch (extractError) {
+        console.error('PDF extraction error:', extractError);
+        // Return textbook record even if extraction fails
+        res.json({ 
+          ...textbook, 
+          extractionError: 'PDF text extraction failed, but file uploaded successfully'
+        });
+      }
+
     } catch (error) {
       console.error("Textbook upload error:", error);
       res.status(500).json({ message: "Failed to upload textbook" });

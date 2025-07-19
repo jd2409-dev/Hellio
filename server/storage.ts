@@ -44,6 +44,7 @@ export interface IStorage {
   createTextbook(textbook: InsertTextbook): Promise<Textbook>;
   getUserTextbooks(userId: string): Promise<Textbook[]>;
   getTextbook(id: number): Promise<Textbook | undefined>;
+  updateTextbook(id: number, data: Partial<InsertTextbook>): Promise<Textbook>;
   
   // Quiz operations
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
@@ -123,6 +124,15 @@ export class DatabaseStorage implements IStorage {
   async getTextbook(id: number): Promise<Textbook | undefined> {
     const [textbook] = await db.select().from(textbooks).where(eq(textbooks.id, id));
     return textbook;
+  }
+
+  async updateTextbook(id: number, data: Partial<InsertTextbook>): Promise<Textbook> {
+    const [updated] = await db
+      .update(textbooks)
+      .set(data)
+      .where(eq(textbooks.id, id))
+      .returning();
+    return updated;
   }
   
   // Quiz operations

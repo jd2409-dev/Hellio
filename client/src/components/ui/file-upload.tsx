@@ -1,139 +1,133 @@
-import { useCallback, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Upload, FileText, X } from 'lucide-react';
 
 interface FileUploadProps {
   onFileSelect: (file: File | null) => void;
   selectedFile: File | null;
   accept?: string;
-  maxSize?: number; // in bytes
+  maxSize?: number;
 }
 
-export default function FileUpload({ onFileSelect, selectedFile, accept = "*/*", maxSize = 10 * 1024 * 1024 }: FileUploadProps) {
+export default function FileUpload({ 
+  onFileSelect, 
+  selectedFile, 
+  accept = ".pdf", 
+  maxSize = 10 * 1024 * 1024 // 10MB default 
+}: FileUploadProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [error, setError] = useState<string>('');
-
-  const validateFile = (file: File): boolean => {
-    setError('');
-
-    if (maxSize && file.size > maxSize) {
-      setError(`File size must be less than ${Math.round(maxSize / (1024 * 1024))}MB`);
-      return false;
-    }
-
-    if (accept !== "*/*") {
-      const acceptedTypes = accept.split(',').map(type => type.trim());
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      const mimeType = file.type;
-
-      const isValidType = acceptedTypes.some(type => {
-        if (type.startsWith('.')) {
-          return fileExtension === type.toLowerCase();
-        }
-        return mimeType.match(type.replace('*', '.*'));
-      });
-
-      if (!isValidType) {
-        setError(`File type not supported. Accepted types: ${accept}`);
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   const handleFileSelect = (file: File) => {
-    if (validateFile(file)) {
-      onFileSelect(file);
-    } else {
-      onFileSelect(null);
+    if (file.size > maxSize) {
+      alert(`File size too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB`);
+      return;
     }
+
+    if (accept && !file.type.match(accept.replace('.', '')) && !file.name.toLowerCase().endsWith(accept)) {
+      alert(`Invalid file type. Please select a ${accept} file.`);
+      return;
+    }
+
+    onFileSelect(file);
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-
+    
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files[0]);
     }
-  }, []);
+  };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
       handleFileSelect(files[0]);
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
-    <div className="w-full">
+    <div className="space-y-4">
       <Card
-        className={`border-2 border-dashed transition-all duration-300 cursor-pointer ${
-          dragOver
-            ? 'border-nexus-green bg-nexus-green bg-opacity-10'
-            : selectedFile
-            ? 'border-nexus-green bg-nexus-green bg-opacity-5'
-            : 'border-gray-600 hover:border-nexus-green glass-effect'
+        className={`border-2 border-dashed transition-all cursor-pointer ${
+          dragOver 
+            ? 'border-nexus-green bg-nexus-green/10' 
+            : 'border-gray-600 hover:border-nexus-green/50'
         }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onClick={() => fileInputRef.current?.click()}
       >
         <CardContent className="p-8 text-center">
-          {selectedFile ? (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <Upload className="w-12 h-12 text-gray-400" />
+            </div>
             <div>
-              <i className="fas fa-file-pdf text-4xl text-nexus-green mb-4"></i>
-              <h3 className="text-lg font-semibold mb-2">{selectedFile.name}</h3>
+              <h3 className="text-lg font-medium mb-2">Drop your file here</h3>
               <p className="text-gray-400 mb-4">
-                Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                or <span className="text-nexus-green">click to browse files</span>
               </p>
-              <Button
-                onClick={() => onFileSelect(null)}
-                variant="outline"
-                className="border-gray-600 hover:border-red-500 hover:text-red-500"
-              >
-                Remove File
-              </Button>
+              <p className="text-sm text-gray-500">
+                Supports {accept} files up to {Math.round(maxSize / 1024 / 1024)}MB
+              </p>
             </div>
-          ) : (
-            <div>
-              <i className="fas fa-cloud-upload-alt text-4xl text-nexus-green mb-4"></i>
-              <h3 className="text-lg font-semibold mb-2">Drag and drop your file here</h3>
-              <p className="text-gray-400 mb-4">or click to browse files</p>
-              <input
-                type="file"
-                accept={accept}
-                onChange={handleFileInputChange}
-                className="hidden"
-                id="file-input"
-              />
-              <label htmlFor="file-input">
-                <Button className="bg-nexus-green text-black hover:bg-nexus-gold">
-                  Choose File
-                </Button>
-              </label>
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {error && (
-        <div className="mt-2 text-red-500 text-sm">
-          <i className="fas fa-exclamation-triangle mr-2"></i>
-          {error}
-        </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        onChange={handleFileInput}
+        className="hidden"
+      />
+
+      {selectedFile && (
+        <Card className="bg-nexus-gray/50 border-nexus-green">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <FileText className="w-8 h-8 text-nexus-green" />
+                <div>
+                  <p className="font-medium text-white">{selectedFile.name}</p>
+                  <p className="text-sm text-gray-400">{formatFileSize(selectedFile.size)}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFileSelect(null);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+                className="text-gray-400 hover:text-red-400"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
