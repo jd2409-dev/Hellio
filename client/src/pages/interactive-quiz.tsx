@@ -341,40 +341,27 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
 
               {/* Next/Submit Button */}
               <div className="flex items-center space-x-3">
-                {currentQuestionIndex === totalQuestions - 1 ? (
-                  // Final question - Show Submit button
-                  userAnswers[currentQuestionIndex] && (
-                    <Button
-                      onClick={handleSubmitQuiz}
-                      disabled={submitQuizMutation.isPending}
-                      className="bg-gradient-to-r from-nexus-green to-emerald-500 text-black font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 animate-pulse"
-                    >
-                      {submitQuizMutation.isPending ? (
+                {/* Always show the appropriate button when answer is selected */}
+                {userAnswers[currentQuestionIndex] ? (
+                  <Button
+                    onClick={currentQuestionIndex === totalQuestions - 1 ? handleSubmitQuiz : handleNext}
+                    disabled={submitQuizMutation.isPending}
+                    className="bg-nexus-green text-black hover:bg-nexus-gold font-bold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    {currentQuestionIndex === totalQuestions - 1 ? (
+                      submitQuizMutation.isPending ? (
                         <>
                           <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full mr-2"></div>
                           Submitting...
                         </>
                       ) : (
-                        <>
-                          🎯 Submit Quiz
-                        </>
-                      )}
-                    </Button>
-                  )
+                        '🎯 Submit Quiz'
+                      )
+                    ) : (
+                      'Next Question →'
+                    )}
+                  </Button>
                 ) : (
-                  // Regular question - Show Next button only when answered
-                  userAnswers[currentQuestionIndex] && (
-                    <Button
-                      onClick={handleNext}
-                      className="bg-nexus-green text-black hover:bg-nexus-gold font-bold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform animate-fadeIn"
-                    >
-                      Next Question →
-                    </Button>
-                  )
-                )}
-                
-                {/* Prompt when no answer selected */}
-                {!userAnswers[currentQuestionIndex] && (
                   <div className="text-slate-400 text-sm italic px-4 py-2 border border-slate-600 rounded-lg bg-slate-800/30">
                     {currentQuestionIndex === totalQuestions - 1 ? 'Select an answer to submit' : 'Select an answer to continue'}
                   </div>
