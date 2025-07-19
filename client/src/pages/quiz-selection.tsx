@@ -159,19 +159,19 @@ export default function QuizSelection() {
         {!generatedQuiz ? (
           // Quiz Setup
           <div className="max-w-2xl mx-auto">
-            <Card className="glass-effect neon-border">
+            <Card className="bg-black border border-slate-700 shadow-2xl">
               <CardHeader>
-                <CardTitle className="text-center text-nexus-green">Create Your Quiz</CardTitle>
-                <p className="text-gray-400 text-center">Choose a subject and difficulty level for your adaptive quiz</p>
+                <CardTitle className="text-center text-white">Create Your Quiz</CardTitle>
+                <p className="text-slate-300 text-center">Choose a subject and difficulty level for your adaptive quiz</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 text-white">
                 <div>
                   <label className="block text-sm font-medium mb-2">Subject</label>
                   <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                     <SelectTrigger className="bg-nexus-gray border-gray-600 focus:border-nexus-green">
                       <SelectValue placeholder="Select a subject" />
                     </SelectTrigger>
-                    <SelectContent className="bg-nexus-gray border-gray-600">
+                    <SelectContent className="bg-black border-slate-700 text-white">
                       {subjectOptions.map((subject) => (
                         <SelectItem key={subject.value} value={subject.value}>
                           <div className="flex items-center space-x-2">
@@ -237,11 +237,11 @@ export default function QuizSelection() {
         ) : quizComplete ? (
           // Quiz Results
           <div className="max-w-2xl mx-auto">
-            <Card className="glass-effect neon-border">
+            <Card className="bg-black border border-slate-700 shadow-2xl">
               <CardHeader>
-                <CardTitle className="text-center text-nexus-gold">Quiz Complete!</CardTitle>
+                <CardTitle className="text-center text-amber-400">Quiz Complete!</CardTitle>
               </CardHeader>
-              <CardContent className="text-center space-y-6">
+              <CardContent className="text-center space-y-6 text-white">
                 <div>
                   <div className="text-6xl font-bold text-nexus-green mb-2">{quizResult.score}%</div>
                   <p className="text-xl">
@@ -302,9 +302,9 @@ export default function QuizSelection() {
               </div>
             </div>
 
-            <Card className="glass-effect neon-border mb-6">
+            <Card className="bg-black border border-slate-700 shadow-2xl mb-6">
               <CardContent className="p-8">
-                <h3 className="text-xl font-semibold mb-6">
+                <h3 className="text-xl font-semibold mb-6 text-white">
                   {generatedQuiz.questions[currentQuestionIndex].question}
                 </h3>
                 
