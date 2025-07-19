@@ -255,11 +255,12 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
               {getAnswerOptions().map((option, index) => {
                 const isSelected = userAnswers[currentQuestionIndex] === option;
                 return (
-                  <div
+                  <button
                     key={index}
-                    className={`cursor-pointer transition-all duration-200 border-2 transform hover:scale-[1.02] rounded-lg ${
+                    type="button"
+                    className={`w-full cursor-pointer transition-all duration-200 border-2 transform hover:scale-[1.02] rounded-lg focus:outline-none focus:ring-2 focus:ring-nexus-green/50 ${
                       isSelected
-                        ? 'border-nexus-green bg-gradient-to-r from-nexus-green/20 to-emerald-500/20 shadow-xl shadow-nexus-green/20'
+                        ? 'border-nexus-green bg-gradient-to-r from-nexus-green/20 to-emerald-500/20 shadow-xl shadow-nexus-green/20 ring-2 ring-nexus-green/30'
                         : 'border-slate-600 bg-slate-800/50 hover:border-nexus-green/50 hover:bg-slate-700/50'
                     }`}
                     onClick={() => {
@@ -307,7 +308,7 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
