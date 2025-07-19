@@ -42,13 +42,11 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
 
   const submitQuizMutation = useMutation({
     mutationFn: async (quizData: any) => {
-      return apiRequest('/api/quizzes/submit', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...quizData,
-          quizId: quiz // Pass the entire quiz object for textbook quizzes
-        }),
+      const response = await apiRequest('POST', '/api/quizzes/submit', {
+        ...quizData,
+        quizId: quiz // Pass the entire quiz object for textbook quizzes
       });
+      return await response.json();
     },
     onSuccess: (data) => {
       setResults(data);
