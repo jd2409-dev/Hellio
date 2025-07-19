@@ -389,27 +389,78 @@ export default function TextbookUpload() {
             <div className="space-y-6">
               <div>
                 <h4 className="font-medium mb-3">Select Question Type:</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-4">
                   {[
-                    { value: '2-marks', label: '2 Marks', desc: 'Short answer questions', icon: '✏️' },
-                    { value: 'mcq', label: 'MCQ', desc: 'Multiple choice questions', icon: '☑️' },
-                    { value: 'assertion-reason', label: 'Assertion-Reason', desc: 'Logic based questions', icon: '🧠' },
-                    { value: '3-marks', label: '3 Marks', desc: 'Medium answer questions', icon: '📝' },
-                    { value: '5-marks', label: '5 Marks', desc: 'Long answer questions', icon: '📋' },
+                    { 
+                      value: '2-marks', 
+                      label: '2 Marks Questions', 
+                      desc: 'Short answer questions requiring brief explanations',
+                      icon: '✏️',
+                      example: 'Define photosynthesis.'
+                    },
+                    { 
+                      value: 'mcq', 
+                      label: 'Multiple Choice Questions (MCQ)', 
+                      desc: 'Four option questions with one correct answer',
+                      icon: '☑️',
+                      example: 'Which of the following is correct? A) Option 1 B) Option 2...'
+                    },
+                    { 
+                      value: 'assertion-reason', 
+                      label: 'Assertion-Reason Questions', 
+                      desc: 'Logic-based questions with assertion and reason statements',
+                      icon: '🧠',
+                      example: 'Assertion: Water boils at 100°C. Reason: Because...'
+                    },
+                    { 
+                      value: '3-marks', 
+                      label: '3 Marks Questions', 
+                      desc: 'Medium answer questions requiring detailed explanations',
+                      icon: '📝',
+                      example: 'Explain the process of mitosis in detail.'
+                    },
+                    { 
+                      value: '5-marks', 
+                      label: '5 Marks Questions', 
+                      desc: 'Long answer questions requiring comprehensive responses',
+                      icon: '📋',
+                      example: 'Analyze the impact of climate change on ecosystems.'
+                    },
                   ].map((type) => (
                     <Card 
                       key={type.value}
-                      className={`cursor-pointer transition-all border-2 ${
+                      className={`cursor-pointer transition-all duration-300 border-2 ${
                         quizType === type.value 
-                          ? 'border-emerald-400 bg-emerald-500/20 shadow-lg shadow-emerald-500/25' 
-                          : 'border-slate-600 bg-slate-800/50 hover:border-emerald-500/50 hover:bg-slate-700/50'
+                          ? 'border-emerald-400 bg-gradient-to-r from-emerald-500/20 to-green-500/20 shadow-xl shadow-emerald-500/30 ring-2 ring-emerald-400/50' 
+                          : 'border-slate-600 bg-slate-800/50 hover:border-emerald-500/50 hover:bg-slate-700/60 hover:shadow-lg'
                       }`}
                       onClick={() => setQuizType(type.value)}
                     >
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl mb-2">{type.icon}</div>
-                        <h5 className="font-bold text-white mb-1">{type.label}</h5>
-                        <p className="text-xs text-slate-400">{type.desc}</p>
+                      <CardContent className="p-5">
+                        <div className="flex items-start space-x-4">
+                          <div className="text-3xl flex-shrink-0">{type.icon}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h5 className={`font-bold text-lg ${
+                                quizType === type.value ? 'text-emerald-300' : 'text-white'
+                              }`}>{type.label}</h5>
+                              {quizType === type.value && (
+                                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-300 mb-2">{type.desc}</p>
+                            <p className="text-xs text-slate-400 italic">
+                              Example: {type.example}
+                            </p>
+                          </div>
+                          {quizType === type.value && (
+                            <div className="flex-shrink-0">
+                              <div className="w-6 h-6 bg-emerald-400 rounded-full flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -450,7 +501,14 @@ export default function TextbookUpload() {
                   </div>
                 </div>
               ) : (
-                <div className="flex justify-center">
+                <div className="flex flex-col items-center space-y-4">
+                  {!quizType && (
+                    <div className="text-center p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <p className="text-yellow-300 text-sm">
+                        👆 Please select a question type above to continue
+                      </p>
+                    </div>
+                  )}
                   <Button
                     onClick={() => {
                       if (!quizType) {
@@ -468,17 +526,21 @@ export default function TextbookUpload() {
                       });
                     }}
                     disabled={generateQuizMutation.isPending || !quizType}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+                    className={`px-8 py-4 font-bold text-lg shadow-2xl transition-all duration-300 ${
+                      !quizType 
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white hover:scale-105'
+                    }`}
                   >
                     {generateQuizMutation.isPending ? (
                       <>
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                        Generating...
+                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
+                        Generating Quiz...
                       </>
                     ) : (
                       <>
-                        <Target className="w-4 h-4 mr-2" />
-                        Generate Quiz
+                        <Target className="w-5 h-5 mr-3" />
+                        Generate {quizType ? quizType.toUpperCase().replace('-', ' ') : ''} Quiz
                       </>
                     )}
                   </Button>
