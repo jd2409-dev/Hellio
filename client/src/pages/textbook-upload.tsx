@@ -240,15 +240,18 @@ export default function TextbookUpload() {
                 <Button
                   onClick={handleUpload}
                   disabled={!selectedFile || uploadMutation.isPending}
-                  className="w-full bg-nexus-green text-black hover:bg-nexus-gold"
+                  className="w-full bg-gradient-to-r from-nexus-green to-emerald-500 hover:from-nexus-gold hover:to-yellow-500 text-black font-bold py-3 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
                 >
                   {uploadMutation.isPending ? (
                     <>
-                      <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full mr-2"></div>
-                      Processing...
+                      <div className="animate-spin w-5 h-5 border-2 border-black border-t-transparent rounded-full mr-3"></div>
+                      Processing PDF...
                     </>
                   ) : (
-                    'Upload & Analyze'
+                    <>
+                      <BookOpen className="w-5 h-5 mr-3" />
+                      Upload & Process Textbook
+                    </>
                   )}
                 </Button>
               </CardContent>
@@ -266,54 +269,65 @@ export default function TextbookUpload() {
                   <div className="space-y-3">
                     {textbooks.map((textbook: any) => (
                       <div key={textbook.id} className="glass-effect p-4 rounded-lg border border-gray-700">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <i className="fas fa-file-pdf text-red-500 text-xl"></i>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center space-x-3 flex-1">
+                            <FileText className="w-8 h-8 text-red-500" />
                             <div>
-                              <p className="font-medium">{textbook.originalName}</p>
+                              <p className="font-medium text-white">{textbook.originalName}</p>
                               <p className="text-sm text-gray-400">
                                 Uploaded {new Date(textbook.createdAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-col space-y-2">
+                          <div className="flex flex-col items-end space-y-2 min-w-[160px]">
                             {textbook.extractedText ? (
                               <>
-                                <Badge className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                                  Processed
+                                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 px-3 py-1 font-semibold">
+                                  ✓ Ready
                                 </Badge>
-                                <div className="flex space-x-2">
+                                <div className="flex flex-col space-y-2 w-full">
                                   <Button
                                     size="sm" 
-                                    variant="outline"
                                     onClick={() => {
                                       setSelectedTextbook(textbook);
                                       setShowQuizDialog(true);
                                     }}
-                                    className="text-xs border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
+                                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                                   >
-                                    <Target className="w-3 h-3 mr-1" />
-                                    Quiz
+                                    <Target className="w-4 h-4 mr-2" />
+                                    Generate Quiz
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="outline" 
                                     onClick={() => {
                                       setSelectedTextbook(textbook);
                                       explainTextbookMutation.mutate({ textbookId: textbook.id });
                                     }}
                                     disabled={explainTextbookMutation.isPending}
-                                    className="text-xs border-blue-500/50 text-blue-300 hover:bg-blue-500/10"
+                                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                                   >
-                                    <Brain className="w-3 h-3 mr-1" />
-                                    {explainTextbookMutation.isPending ? 'Explaining...' : 'Explain'}
+                                    <Brain className="w-4 h-4 mr-2" />
+                                    {explainTextbookMutation.isPending ? (
+                                      <>
+                                        <div className="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full mr-2"></div>
+                                        Explaining...
+                                      </>
+                                    ) : (
+                                      'AI Explain'
+                                    )}
                                   </Button>
                                 </div>
                               </>
                             ) : (
-                              <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                                Processing...
-                              </Badge>
+                              <div className="flex flex-col items-center space-y-2">
+                                <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 px-3 py-1 font-semibold">
+                                  ⏳ Processing...
+                                </Badge>
+                                <div className="flex items-center space-x-2 text-xs text-gray-400">
+                                  <div className="animate-spin w-3 h-3 border border-yellow-400 border-t-transparent rounded-full"></div>
+                                  <span>Extracting text...</span>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -377,23 +391,24 @@ export default function TextbookUpload() {
                 <h4 className="font-medium mb-3">Select Question Type:</h4>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: '2-marks', label: '2 Marks', desc: 'Short answer questions' },
-                    { value: 'mcq', label: 'MCQ', desc: 'Multiple choice questions' },
-                    { value: 'assertion-reason', label: 'Assertion-Reason', desc: 'Logic based questions' },
-                    { value: '3-marks', label: '3 Marks', desc: 'Medium answer questions' },
-                    { value: '5-marks', label: '5 Marks', desc: 'Long answer questions' },
+                    { value: '2-marks', label: '2 Marks', desc: 'Short answer questions', icon: '✏️' },
+                    { value: 'mcq', label: 'MCQ', desc: 'Multiple choice questions', icon: '☑️' },
+                    { value: 'assertion-reason', label: 'Assertion-Reason', desc: 'Logic based questions', icon: '🧠' },
+                    { value: '3-marks', label: '3 Marks', desc: 'Medium answer questions', icon: '📝' },
+                    { value: '5-marks', label: '5 Marks', desc: 'Long answer questions', icon: '📋' },
                   ].map((type) => (
                     <Card 
                       key={type.value}
-                      className={`cursor-pointer transition-all border ${
+                      className={`cursor-pointer transition-all border-2 ${
                         quizType === type.value 
-                          ? 'border-emerald-500 bg-emerald-500/10' 
-                          : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+                          ? 'border-emerald-400 bg-emerald-500/20 shadow-lg shadow-emerald-500/25' 
+                          : 'border-slate-600 bg-slate-800/50 hover:border-emerald-500/50 hover:bg-slate-700/50'
                       }`}
                       onClick={() => setQuizType(type.value)}
                     >
-                      <CardContent className="p-4">
-                        <h5 className="font-semibold text-white">{type.label}</h5>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-2xl mb-2">{type.icon}</div>
+                        <h5 className="font-bold text-white mb-1">{type.label}</h5>
                         <p className="text-xs text-slate-400">{type.desc}</p>
                       </CardContent>
                     </Card>
