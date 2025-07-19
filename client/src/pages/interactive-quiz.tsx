@@ -334,8 +334,12 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
               {currentQuestionIndex === totalQuestions - 1 ? (
                 <Button
                   onClick={handleSubmitQuiz}
-                  disabled={submitQuizMutation.isPending}
-                  className="bg-gradient-to-r from-nexus-green to-emerald-500 text-black font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  disabled={submitQuizMutation.isPending || !userAnswers[currentQuestionIndex]}
+                  className={`font-bold px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 ${
+                    userAnswers[currentQuestionIndex] 
+                      ? 'bg-gradient-to-r from-nexus-green to-emerald-500 text-black'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {submitQuizMutation.isPending ? (
                     <>
@@ -349,28 +353,14 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                   )}
                 </Button>
               ) : (
-                <Button
-                  onClick={handleNext}
-                  disabled={!userAnswers[currentQuestionIndex]}
-                  className={`px-6 py-2 font-bold transition-all duration-200 ${
-                    userAnswers[currentQuestionIndex]
-                      ? 'bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  Next Question →
-                </Button>
-              )}
-              
-              {/* Always show Skip button for debugging */}
-              {currentQuestionIndex < totalQuestions - 1 && (
-                <Button
-                  onClick={handleNext}
-                  variant="outline"
-                  className="border-slate-600 text-slate-300 hover:border-nexus-green hover:text-nexus-green px-4 py-2"
-                >
-                  Skip Question
-                </Button>
+                userAnswers[currentQuestionIndex] && (
+                  <Button
+                    onClick={handleNext}
+                    className="bg-nexus-green text-black hover:bg-nexus-gold shadow-lg hover:shadow-xl hover:scale-105 px-6 py-2 font-bold transition-all duration-200"
+                  >
+                    Next Question →
+                  </Button>
+                )
               )}
             </div>
           </div>
