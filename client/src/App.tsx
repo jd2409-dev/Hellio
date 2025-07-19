@@ -10,6 +10,7 @@ import AITutor from "@/pages/ai-tutor";
 import TextbookUpload from "@/pages/textbook-upload";
 import QuizSelection from "@/pages/quiz-selection";
 import SubjectDetail from "@/pages/subject-detail";
+import Analytics from "@/pages/analytics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
           <Route path="/textbook-upload" component={TextbookUpload} />
           <Route path="/quiz-selection" component={QuizSelection} />
           <Route path="/subject/:id" component={SubjectDetail} />
+          <Route path="/analytics" component={Analytics} />
         </>
       )}
       <Route component={NotFound} />

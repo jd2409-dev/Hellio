@@ -532,6 +532,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics endpoint
+  app.get('/api/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { analyticsService } = await import("./services/analyticsService");
+      
+      const analyticsData = await analyticsService.getAnalyticsData(userId);
+      res.json(analyticsData);
+    } catch (error) {
+      console.error('Analytics error:', error);
+      res.status(500).json({ message: 'Failed to fetch analytics data' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

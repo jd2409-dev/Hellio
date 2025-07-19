@@ -121,6 +121,40 @@ export const chatSessions = pgTable("chat_sessions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Analytics and Performance Tracking Tables
+export const studySessions = pgTable("study_sessions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  activityType: varchar("activity_type").notNull(), // 'quiz', 'chat', 'textbook_upload'
+  duration: integer("duration").notNull(), // in seconds
+  xpEarned: integer("xp_earned").notNull(),
+  startedAt: timestamp("started_at").notNull(),
+  completedAt: timestamp("completed_at").defaultNow(),
+});
+
+export const learningStreaks = pgTable("learning_streaks", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastStudyDate: timestamp("last_study_date"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const performanceMetrics = pgTable("performance_metrics", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  averageScore: decimal("average_score", { precision: 5, scale: 2 }).notNull(),
+  totalQuizzes: integer("total_quizzes").notNull(),
+  totalStudyTime: integer("total_study_time").notNull(), // in minutes
+  weakAreas: jsonb("weak_areas").$type<string[]>().default([]),
+  strongAreas: jsonb("strong_areas").$type<string[]>().default([]),
+  recommendations: jsonb("recommendations").$type<string[]>().default([]),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userSubjects: many(userSubjects),
@@ -129,6 +163,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   quizAttempts: many(quizAttempts),
   userAchievements: many(userAchievements),
   chatSessions: many(chatSessions),
+  studySessions: many(studySessions),
+  performanceMetrics: many(performanceMetrics),
 }));
 
 export const subjectsRelations = relations(subjects, ({ many }) => ({
@@ -155,6 +191,20 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
 
 export const achievementsRelations = relations(achievements, ({ many }) => ({
   userAchievements: many(userAchievements),
+}));
+
+export const studySessionsRelations = relations(studySessions, ({ one }) => ({
+  user: one(users, { fields: [studySessions.userId], references: [users.id] }),
+  subject: one(subjects, { fields: [studySessions.subjectId], references: [subjects.id] }),
+}));
+
+export const learningStreaksRelations = relations(learningStreaks, ({ one }) => ({
+  user: one(users, { fields: [learningStreaks.userId], references: [users.id] }),
+}));
+
+export const performanceMetricsRelations = relations(performanceMetrics, ({ one }) => ({
+  user: one(users, { fields: [performanceMetrics.userId], references: [users.id] }),
+  subject: one(subjects, { fields: [performanceMetrics.subjectId], references: [subjects.id] }),
 }));
 
 // Insert schemas
@@ -189,6 +239,21 @@ export const insertUserSubjectSchema = createInsertSchema(userSubjects).omit({
   updatedAt: true,
 });
 
+export const insertStudySessionSchema = createInsertSchema(studySessions).omit({
+  id: true,
+  completedAt: true,
+});
+
+export const insertLearningStreakSchema = createInsertSchema(learningStreaks).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertPerformanceMetricSchema = createInsertSchema(performanceMetrics).omit({
+  id: true,
+  lastUpdated: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -203,5 +268,11 @@ export type InsertQuiz = z.infer<typeof insertQuizSchema>;
 export type QuizAttempt = typeof quizAttempts.$inferSelect;
 export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
 export type Achievement = typeof achievements.$inferSelect;
+export type StudySession = typeof studySessions.$inferSelect;
+export type InsertStudySession = z.infer<typeof insertStudySessionSchema>;
+export type LearningStreak = typeof learningStreaks.$inferSelect;
+export type InsertLearningStreak = z.infer<typeof insertLearningStreakSchema>;
+export type PerformanceMetric = typeof performanceMetrics.$inferSelect;
+export type InsertPerformanceMetric = z.infer<typeof insertPerformanceMetricSchema>;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type ChatSession = typeof chatSessions.$inferSelect;

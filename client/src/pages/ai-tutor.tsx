@@ -4,9 +4,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { VoiceInput, tts } from "@/components/voice-input";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link } from "wouter";
+import { Send, Bot, User, Volume2, VolumeX, Mic, ArrowLeft, Loader2 } from "lucide-react";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,6 +26,9 @@ export default function AITutor() {
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [textToSpeechEnabled, setTextToSpeechEnabled] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -35,11 +41,18 @@ export default function AITutor() {
       return response.json();
     },
     onSuccess: (data) => {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
+      const assistantMessage = {
+        role: 'assistant' as const,
         content: data.response,
         timestamp: new Date(),
-      }]);
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Auto-speak AI response if TTS is enabled
+      if (textToSpeechEnabled && data.response) {
+        tts.speak(data.response);
+      }
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -67,8 +80,9 @@ export default function AITutor() {
 
   useEffect(scrollToBottom, [messages]);
 
-  const handleSendMessage = () => {
-    const message = inputMessage.trim();
+  const handleSendMessage = (messageText?: string) => {
+    const text = messageText || inputMessage;
+    const message = text.trim();
     if (!message) return;
 
     // Add user message immediately
@@ -80,6 +94,19 @@ export default function AITutor() {
 
     setInputMessage('');
     chatMutation.mutate(message);
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    if (transcript.trim()) {
+      setInputMessage(prev => (prev + ' ' + transcript).trim());
+    }
+  };
+
+  const toggleTTS = () => {
+    setTextToSpeechEnabled(!textToSpeechEnabled);
+    if (tts.isSpeaking) {
+      tts.stop();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -159,25 +186,82 @@ export default function AITutor() {
         </div>
       </div>
       
+      {/* Voice Controls */}
+      <div className="glass-effect p-4 border-t border-gray-700/50">
+        <div className="container mx-auto max-w-4xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="voice-input"
+                  checked={voiceEnabled}
+                  onCheckedChange={setVoiceEnabled}
+                />
+                <label htmlFor="voice-input" className="text-sm text-white flex items-center">
+                  <Mic className="w-4 h-4 mr-1" />
+                  Voice Input
+                </label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTTS}
+                  className={`${textToSpeechEnabled ? 'text-nexus-green' : 'text-gray-400'} hover:text-white`}
+                >
+                  {textToSpeechEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </Button>
+                <label className="text-sm text-white">
+                  Read Responses Aloud
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {voiceEnabled && (
+            <div className="mb-4">
+              <VoiceInput
+                onTranscript={handleVoiceTranscript}
+                onSpeaking={setIsListening}
+                disabled={chatMutation.isPending}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Input Area */}
-      <div className="glass-effect p-4 border-t border-gray-700">
+      <div className="glass-effect p-4 border-t border-gray-700/50">
         <div className="container mx-auto max-w-4xl flex space-x-4">
           <Input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about your studies..."
+            placeholder={voiceEnabled ? "Type or speak your question..." : "Ask me anything about your studies..."}
             className="flex-1 bg-nexus-gray border-gray-600 focus:border-nexus-green"
             disabled={chatMutation.isPending}
           />
           <Button
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             disabled={chatMutation.isPending || !inputMessage.trim()}
-            className="bg-nexus-green text-black hover:bg-nexus-gold"
+            className="bg-nexus-green text-black hover:bg-nexus-gold shadow-lg"
           >
-            <i className="fas fa-paper-plane"></i>
+            {chatMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
+        
+        {voiceEnabled && (
+          <div className="text-xs text-gray-400 mt-2 flex items-center justify-center space-x-4">
+            <span>🎤 Voice input enabled</span>
+            {textToSpeechEnabled && <span>🔊 Text-to-speech enabled</span>}
+            {isListening && <span className="text-red-400 animate-pulse">● Recording...</span>}
+          </div>
+        )}
       </div>
     </div>
   );
