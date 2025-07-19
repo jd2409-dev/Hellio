@@ -177,9 +177,57 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                   <div className="text-red-200">Incorrect</div>
                 </div>
                 <div className="bg-yellow-500/20 p-2 rounded text-center">
-                  <div className="font-bold text-yellow-300">{results.timeSpent}s</div>
-                  <div className="text-yellow-200">Time Taken</div>
+                  <div className="font-bold text-yellow-300">{results.coinsGained || 0}</div>
+                  <div className="text-yellow-200">Coins Earned</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Detailed Answer Review */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-white">Review Your Answers:</h4>
+              <div className="max-h-64 overflow-y-auto space-y-3">
+                {quiz.questions.map((question: any, index: number) => {
+                  const userAnswer = userAnswers[index];
+                  const correctAnswer = question.correctAnswer || question.modelAnswer;
+                  const isCorrect = userAnswer && correctAnswer && 
+                    String(userAnswer).toLowerCase().trim() === String(correctAnswer).toLowerCase().trim();
+
+                  return (
+                    <div key={index} className={`border rounded-lg p-3 ${
+                      isCorrect ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'
+                    }`}>
+                      <div className="flex items-start space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                          isCorrect ? 'bg-green-500' : 'bg-red-500'
+                        }`}>
+                          {isCorrect ? '✓' : '✗'}
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-white text-sm mb-2">
+                            Q{index + 1}: {question.question.substring(0, 80)}...
+                          </h5>
+                          
+                          <div className="space-y-1 text-xs">
+                            <div>
+                              <span className="text-slate-400">Your Answer: </span>
+                              <span className={`${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                {userAnswer || 'No answer selected'}
+                              </span>
+                            </div>
+                            
+                            {!isCorrect && (
+                              <div>
+                                <span className="text-slate-400">Correct Answer: </span>
+                                <span className="text-green-400">{correctAnswer}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
