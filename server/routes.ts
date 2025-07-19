@@ -186,6 +186,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate quiz from textbook
+  app.post('/api/textbooks/generate-quiz', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { textbookId, questionType, numQuestions = 10 } = req.body;
+
+      const textbook = await storage.getTextbook(textbookId);
+      if (!textbook || textbook.userId !== userId) {
+        return res.status(404).json({ message: "Textbook not found" });
+      }
+
+      if (!textbook.extractedText) {
+        return res.status(400).json({ message: "Textbook content not processed yet" });
+      }
+
+      const { generateTextbookQuiz } = await import('./services/textbookExplainer');
+      const quiz = await generateTextbookQuiz(
+        textbook.extractedText, 
+        questionType, 
+        numQuestions
+      );
+
+      res.json(quiz);
+    } catch (error) {
+      console.error("Textbook quiz generation error:", error);
+      res.status(500).json({ message: "Failed to generate quiz from textbook" });
+    }
+  });
+
+  // AI explainer for textbook
+  app.post('/api/textbooks/explain', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { textbookId } = req.body;
+
+      const textbook = await storage.getTextbook(textbookId);
+      if (!textbook || textbook.userId !== userId) {
+        return res.status(404).json({ message: "Textbook not found" });
+      }
+
+      if (!textbook.extractedText) {
+        return res.status(400).json({ message: "Textbook content not processed yet" });
+      }
+
+      const { explainTextbook } = await import('./services/textbookExplainer');
+      const explanation = await explainTextbook(textbook.extractedText);
+
+      res.json({ explanation });
+    } catch (error) {
+      console.error("Textbook explanation error:", error);
+      res.status(500).json({ message: "Failed to generate explanation for textbook" });
+    }
+  });
+
   app.get('/api/textbooks', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

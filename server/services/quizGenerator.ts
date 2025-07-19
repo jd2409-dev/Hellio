@@ -22,17 +22,85 @@ export async function generateQuiz(
   subject: string,
   difficulty: 'easy' | 'medium' | 'hard',
   numQuestions: number = 10,
-  topic?: string
+  topic?: string,
+  questionType?: string,
+  textbookContent?: string
 ): Promise<GeneratedQuiz> {
   try {
-    const prompt = `Generate a ${difficulty} difficulty quiz for ${subject}${topic ? ` focusing on ${topic}` : ''}.
+    let prompt = '';
     
-    Create exactly ${numQuestions} multiple choice questions with the following requirements:
-    - Each question should have 4 options (A, B, C, D)
-    - Include the correct answer index (0-3)
-    - Provide a clear explanation for each answer
-    - Questions should be educational and test understanding, not just memorization
-    - Progressive difficulty within the ${difficulty} level
+    if (questionType) {
+      switch (questionType) {
+        case '2-marks':
+          prompt = `Generate ${numQuestions} short answer questions (2 marks each) for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Each question should:
+          - Be answerable in 2-3 sentences
+          - Test basic understanding and concepts
+          - Have a model answer of 30-50 words
+          - Be worth 2 marks`;
+          break;
+          
+        case 'mcq':
+          prompt = `Generate ${numQuestions} multiple choice questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Each question should have:
+          - 4 options (A, B, C, D)
+          - Only one correct answer
+          - Clear and concise options
+          - Educational value`;
+          break;
+          
+        case 'assertion-reason':
+          prompt = `Generate ${numQuestions} assertion-reason type questions for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Each question should have:
+          - An assertion statement
+          - A reason statement
+          - 4 options: (A) Both assertion and reason are true, reason is correct explanation (B) Both true, reason not correct explanation (C) Assertion true, reason false (D) Both false`;
+          break;
+          
+        case '3-marks':
+          prompt = `Generate ${numQuestions} medium answer questions (3 marks each) for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Each question should:
+          - Require detailed explanation with examples
+          - Test conceptual understanding and application
+          - Have a model answer of 60-100 words
+          - Be worth 3 marks`;
+          break;
+          
+        case '5-marks':
+          prompt = `Generate ${numQuestions} long answer questions (5 marks each) for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Each question should:
+          - Require comprehensive explanation with diagrams/examples
+          - Test deep understanding and analytical skills
+          - Have a model answer of 150-200 words
+          - Be worth 5 marks`;
+          break;
+          
+        default:
+          prompt = `Generate a ${difficulty} difficulty quiz for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+          
+          Create exactly ${numQuestions} multiple choice questions with the following requirements:
+          - Each question should have 4 options (A, B, C, D)
+          - Include the correct answer index (0-3)
+          - Provide a clear explanation for each answer
+          - Questions should be educational and test understanding, not just memorization
+          - Progressive difficulty within the ${difficulty} level`;
+      }
+    } else {
+      prompt = `Generate a ${difficulty} difficulty quiz for ${subject}${topic ? ` focusing on ${topic}` : ''}${textbookContent ? ' based on the provided textbook content' : ''}.
+      
+      Create exactly ${numQuestions} multiple choice questions with the following requirements:
+      - Each question should have 4 options (A, B, C, D)
+      - Include the correct answer index (0-3)
+      - Provide a clear explanation for each answer
+      - Questions should be educational and test understanding, not just memorization
+      - Progressive difficulty within the ${difficulty} level
+    
+    ${textbookContent ? `\n\nTextbook Content:\n${textbookContent.substring(0, 8000)}` : ''}
     
     Return the response in this exact JSON format:
     {
@@ -49,6 +117,7 @@ export async function generateQuiz(
         }
       ]
     }`;
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-pro",
