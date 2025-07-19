@@ -402,16 +402,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const correctAnswer = question.correctAnswer || question.modelAnswer;
         
         if (userAnswer && correctAnswer) {
+          // Convert both to strings and normalize
+          const userAnswerStr = String(userAnswer).toLowerCase().trim();
+          const correctAnswerStr = String(correctAnswer).toLowerCase().trim();
+          
           // For MCQ and assertion-reason, exact match
           if (quizData.questionType === 'mcq' || quizData.questionType === 'assertion-reason') {
-            if (userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            if (userAnswerStr === correctAnswerStr) {
               correct++;
             }
           }
           // For other types, flexible matching
           else {
-            if (userAnswer.toLowerCase().includes(correctAnswer.toLowerCase()) || 
-                correctAnswer.toLowerCase().includes(userAnswer.toLowerCase())) {
+            if (userAnswerStr.includes(correctAnswerStr) || 
+                correctAnswerStr.includes(userAnswerStr)) {
               correct++;
             }
           }
