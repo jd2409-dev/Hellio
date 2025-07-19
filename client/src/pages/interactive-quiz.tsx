@@ -346,12 +346,12 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                   <Button
                     onClick={currentQuestionIndex === totalQuestions - 1 ? handleSubmitQuiz : handleNext}
                     disabled={submitQuizMutation.isPending}
-                    className="bg-nexus-green text-black hover:bg-nexus-gold font-bold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-2 border-white/20 hover:from-yellow-500 hover:to-orange-500 hover:text-black font-bold px-8 py-3 shadow-2xl hover:shadow-emerald-400/50 transition-all duration-300 hover:scale-110 rounded-xl"
                   >
                     {currentQuestionIndex === totalQuestions - 1 ? (
                       submitQuizMutation.isPending ? (
                         <>
-                          <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full mr-2"></div>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                           Submitting...
                         </>
                       ) : (
