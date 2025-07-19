@@ -358,7 +358,18 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  Next →
+                  Next Question →
+                </Button>
+              )}
+              
+              {/* Always show Skip button for debugging */}
+              {currentQuestionIndex < totalQuestions - 1 && (
+                <Button
+                  onClick={handleNext}
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:border-nexus-green hover:text-nexus-green px-4 py-2"
+                >
+                  Skip Question
                 </Button>
               )}
             </div>
