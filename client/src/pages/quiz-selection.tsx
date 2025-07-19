@@ -41,7 +41,6 @@ const ALL_SUBJECTS = [
   { id: 'geography', name: 'Geography', icon: 'fas fa-map', color: '#FD79A8', description: 'Earth and its features' },
   { id: 'political-science', name: 'Political Science', icon: 'fas fa-balance-scale', color: '#FDCB6E', description: 'Government and politics' },
   { id: 'economics', name: 'Economics', icon: 'fas fa-chart-line', color: '#00CEC9', description: 'Markets and finance' },
-  { id: 'sociology', name: 'Sociology', icon: 'fas fa-users', color: '#E84393', description: 'Society and behavior' },
   
   // Business & Commerce
   { id: 'business-studies', name: 'Business Studies', icon: 'fas fa-briefcase', color: '#E17055', description: 'Commerce and management' },
