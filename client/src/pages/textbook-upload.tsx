@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link } from "wouter";
 import { BookOpen, Brain, Target, Lightbulb, MessageSquare, FileText } from "lucide-react";
+import InteractiveQuiz from "./interactive-quiz";
 
 export default function TextbookUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -19,6 +20,7 @@ export default function TextbookUpload() {
   const [selectedTextbook, setSelectedTextbook] = useState<any>(null);
   const [showQuizDialog, setShowQuizDialog] = useState(false);
   const [showExplainerDialog, setShowExplainerDialog] = useState(false);
+  const [showInteractiveQuiz, setShowInteractiveQuiz] = useState(false);
   const [quizType, setQuizType] = useState('');
   const [generatedQuiz, setGeneratedQuiz] = useState<any>(null);
   const [explainerContent, setExplainerContent] = useState('');
@@ -295,7 +297,7 @@ export default function TextbookUpload() {
                                     className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                                   >
                                     <Target className="w-4 h-4 mr-2" />
-                                    Generate Quiz
+                                    Take Interactive Quiz
                                   </Button>
                                   <Button
                                     size="sm"
@@ -540,7 +542,7 @@ export default function TextbookUpload() {
                     ) : (
                       <>
                         <Target className="w-5 h-5 mr-3" />
-                        Generate {quizType ? quizType.toUpperCase().replace('-', ' ') : ''} Quiz
+                        Start Interactive {quizType ? quizType.toUpperCase().replace('-', ' ') : ''} Quiz
                       </>
                     )}
                   </Button>
@@ -549,6 +551,30 @@ export default function TextbookUpload() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Interactive Quiz Component */}
+        {showInteractiveQuiz && generatedQuiz && (
+          <InteractiveQuiz
+            quiz={{
+              id: generatedQuiz.id || Date.now(),
+              title: generatedQuiz.title,
+              questions: generatedQuiz.questions || [],
+              questionType: quizType
+            }}
+            onClose={() => {
+              setShowInteractiveQuiz(false);
+              setGeneratedQuiz(null);
+              setQuizType('');
+            }}
+            onComplete={(results) => {
+              toast({
+                title: "Quiz Complete!",
+                description: `You scored ${results.score}% and gained ${results.xpGained} XP!`,
+              });
+              // Optionally refresh user stats
+            }}
+          />
+        )}
 
         {/* AI Explainer Dialog */}
         <Dialog open={showExplainerDialog} onOpenChange={setShowExplainerDialog}>

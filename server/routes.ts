@@ -372,6 +372,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced quiz submission route
+  app.post('/api/quizzes/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { quizId, answers, timeSpent, questionType } = req.body;
+
+      // For textbook-generated quizzes, quizId might be the quiz object directly
+      let quizData;
+      if (typeof quizId === 'object') {
+        quizData = quizId;
+      } else {
+        const quiz = await storage.getQuiz(quizId);
+        if (!quiz) {
+          return res.status(404).json({ message: "Quiz not found" });
+        }
+        quizData = {
+          questions: JSON.parse(quiz.questions),
+          questionType: quiz.questionType || questionType
+        };
+      }
+
+      const parsedQuestions = quizData.questions;
+      let correct = 0;
+
+      // Calculate score
+      parsedQuestions.forEach((question: any, index: number) => {
+        const userAnswer = answers[index];
+        const correctAnswer = question.correctAnswer || question.modelAnswer;
+        
+        if (userAnswer && correctAnswer) {
+          // For MCQ and assertion-reason, exact match
+          if (quizData.questionType === 'mcq' || quizData.questionType === 'assertion-reason') {
+            if (userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+              correct++;
+            }
+          }
+          // For other types, flexible matching
+          else {
+            if (userAnswer.toLowerCase().includes(correctAnswer.toLowerCase()) || 
+                correctAnswer.toLowerCase().includes(userAnswer.toLowerCase())) {
+              correct++;
+            }
+          }
+        }
+      });
+
+      const score = Math.round((correct / parsedQuestions.length) * 100);
+      const xpGained = Math.max(10, Math.round(score * 0.5 + (correct * 5)));
+      const coinsGained = Math.max(1, Math.round(score / 20));
+
+      // Save quiz attempt if we have a real quiz ID
+      if (typeof quizId === 'number') {
+        await storage.createQuizAttempt({
+          userId,
+          quizId,
+          answers: JSON.stringify(answers),
+          score,
+          timeSpent: timeSpent || 0,
+        });
+      }
+
+      // Update user XP and coins
+      const currentUser = await storage.getUser(userId);
+      if (currentUser) {
+        await storage.upsertUser({
+          ...currentUser,
+          xp: (currentUser.xp || 0) + xpGained,
+          coins: (currentUser.coins || 0) + coinsGained,
+        });
+      }
+
+      // Check for achievements
+      const achievements = [];
+      if (score === 100) {
+        achievements.push({ name: "Perfect Score", description: "Got 100% on a quiz!" });
+      }
+      if (score >= 80) {
+        achievements.push({ name: "High Achiever", description: "Scored 80% or higher!" });
+      }
+      if (correct >= 5) {
+        achievements.push({ name: "Quiz Master", description: "Answered 5 or more questions correctly!" });
+      }
+
+      res.json({
+        score,
+        correct,
+        incorrect: parsedQuestions.length - correct,
+        total: parsedQuestions.length,
+        xpGained,
+        coinsGained,
+        timeSpent: timeSpent || 0,
+        achievements
+      });
+    } catch (error) {
+      console.error("Quiz submission error:", error);
+      res.status(500).json({ message: "Failed to submit quiz" });
+    }
+  });
+
   app.get('/api/quizzes', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
