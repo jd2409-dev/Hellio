@@ -44,7 +44,10 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
     mutationFn: async (quizData: any) => {
       return apiRequest('/api/quizzes/submit', {
         method: 'POST',
-        body: JSON.stringify(quizData),
+        body: JSON.stringify({
+          ...quizData,
+          quizId: quiz // Pass the entire quiz object for textbook quizzes
+        }),
       });
     },
     onSuccess: (data) => {
@@ -89,7 +92,6 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
   const handleSubmitQuiz = () => {
     const timeSpent = Math.round((Date.now() - timeStarted) / 1000);
     const quizResults = {
-      quizId: quiz.id,
       answers: userAnswers,
       timeSpent,
       questionType: quiz.questionType,
@@ -101,8 +103,8 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
   const getAnswerOptions = () => {
     if (quiz.questionType === 'assertion-reason') {
       return [
-        'Both assertion and reason are correct and reason is the correct explanation',
-        'Both assertion and reason are correct but reason is not the correct explanation',
+        'Both assertion and reason are correct and reason is the correct explanation for assertion',
+        'Both assertion and reason are correct but reason is not the correct explanation for assertion',
         'Assertion is correct but reason is wrong',
         'Assertion is wrong but reason is correct',
         'Both assertion and reason are wrong'
@@ -239,42 +241,71 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
         <div className="space-y-6">
           {renderQuestion()}
 
-          <div className="space-y-3">
-            <h4 className="font-medium text-slate-300">Select your answer:</h4>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <h4 className="font-medium text-slate-300">Choose your answer:</h4>
+              {userAnswers[currentQuestionIndex] && (
+                <Badge className="bg-nexus-green/20 text-nexus-green border-nexus-green/30">
+                  ✓ Selected
+                </Badge>
+              )}
+            </div>
             <div className="space-y-2">
-              {getAnswerOptions().map((option, index) => (
-                <Card
-                  key={index}
-                  className={`cursor-pointer transition-all border-2 ${
-                    userAnswers[currentQuestionIndex] === option
-                      ? 'border-nexus-green bg-nexus-green/20 shadow-lg'
-                      : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-                  }`}
-                  onClick={() => handleAnswerSelect(option)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 ${
-                        userAnswers[currentQuestionIndex] === option
-                          ? 'border-nexus-green bg-nexus-green'
-                          : 'border-slate-400'
-                      }`}>
-                        {userAnswers[currentQuestionIndex] === option && (
-                          <div className="w-2 h-2 bg-black rounded-full m-0.5"></div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        {quiz.questionType === 'mcq' && (
-                          <span className="font-bold text-nexus-green mr-2">
-                            {String.fromCharCode(65 + index)}.
+              {getAnswerOptions().map((option, index) => {
+                const isSelected = userAnswers[currentQuestionIndex] === option;
+                return (
+                  <Card
+                    key={index}
+                    className={`cursor-pointer transition-all duration-200 border-2 transform hover:scale-[1.02] ${
+                      isSelected
+                        ? 'border-nexus-green bg-gradient-to-r from-nexus-green/20 to-emerald-500/20 shadow-xl shadow-nexus-green/20'
+                        : 'border-slate-600 bg-slate-800/50 hover:border-nexus-green/50 hover:bg-slate-700/50'
+                    }`}
+                    onClick={() => handleAnswerSelect(option)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        {/* Radio button indicator */}
+                        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 transition-all duration-200 ${
+                          isSelected
+                            ? 'border-nexus-green bg-nexus-green shadow-lg'
+                            : 'border-slate-400 hover:border-nexus-green/70'
+                        }`}>
+                          {isSelected && (
+                            <div className="w-3 h-3 bg-black rounded-full m-0.5 animate-pulse"></div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          {quiz.questionType === 'mcq' && (
+                            <span className={`font-bold mr-3 text-lg ${
+                              isSelected ? 'text-nexus-green' : 'text-slate-300'
+                            }`}>
+                              {String.fromCharCode(65 + index)}.
+                            </span>
+                          )}
+                          {quiz.questionType === 'assertion-reason' && (
+                            <span className={`font-bold mr-3 ${
+                              isSelected ? 'text-nexus-green' : 'text-slate-300'
+                            }`}>
+                              ({index + 1})
+                            </span>
+                          )}
+                          <span className={`${
+                            isSelected ? 'text-white font-medium' : 'text-slate-300'
+                          }`}>
+                            {option}
                           </span>
-                        )}
-                        <span className="text-white">{option}</span>
+                          {isSelected && (
+                            <span className="ml-2 text-nexus-green">
+                              ✓
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
 
