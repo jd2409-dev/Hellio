@@ -75,7 +75,7 @@ export default function Reflection() {
     );
   }
 
-  const { recentAttempts, subjectPerformance, difficultyPerformance, commonMistakes, improvementSuggestions, totalAttempts, averageScore } = reflectionData;
+  const { recentAttempts, subjectPerformance, difficultyPerformance, questionTypePerformance, commonMistakes, improvementSuggestions, totalAttempts, averageScore } = reflectionData;
 
   return (
     <div className="min-h-screen bg-nexus-black text-white">
@@ -141,7 +141,7 @@ export default function Reflection() {
           </Card>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
           {/* Subject Performance */}
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
@@ -187,6 +187,38 @@ export default function Reflection() {
                   <div key={difficulty} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className={`font-medium capitalize ${color}`}>{difficulty}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-slate-400">{data.attempts} attempts</span>
+                        <Badge variant={avgScore >= 80 ? "default" : avgScore >= 60 ? "secondary" : "destructive"}>
+                          {avgScore}%
+                        </Badge>
+                      </div>
+                    </div>
+                    <Progress value={avgScore} className="h-2" />
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Question Type Performance */}
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="flex items-center text-white">
+                <Brain className="w-5 h-5 mr-2" />
+                Question Types
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(questionTypePerformance || {}).map(([questionType, data]: [string, any]) => {
+                const avgScore = data.attempts > 0 ? Math.round(data.total / data.attempts) : 0;
+                const formatType = questionType.replace('-', ' ').split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                return (
+                  <div key={questionType} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white font-medium">{formatType}</span>
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-slate-400">{data.attempts} attempts</span>
                         <Badge variant={avgScore >= 80 ? "default" : avgScore >= 60 ? "secondary" : "destructive"}>

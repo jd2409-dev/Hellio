@@ -382,13 +382,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/quizzes/submit', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { quizId, answers, timeSpent, questionType } = req.body;
+      const { quizId, answers, timeSpent, questionType, subject, difficulty } = req.body;
 
       // For textbook-generated quizzes, quizId might be the quiz object directly
       let quizData;
+      let actualQuizId = null;
+      let quizSubject = subject || 'General';
+      let quizDifficulty = difficulty || 'medium';
+      let quizQuestionType = questionType || 'mcq';
+
       if (typeof quizId === 'object') {
         quizData = quizId;
+        // Extract metadata from quiz object
+        quizSubject = quizData.subject || subject || 'General';
+        quizDifficulty = quizData.difficulty || difficulty || 'medium';
+        quizQuestionType = quizData.questionType || questionType || 'mcq';
       } else {
+        actualQuizId = quizId;
         const quiz = await storage.getQuiz(quizId);
         if (!quiz) {
           return res.status(404).json({ message: "Quiz not found" });
@@ -397,6 +407,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           questions: JSON.parse(quiz.questions),
           questionType: quiz.questionType || questionType
         };
+        // Extract metadata from stored quiz
+        quizSubject = quiz.title.split(' ')[0] || 'General';
+        quizDifficulty = quiz.difficulty || 'medium';
+        quizQuestionType = quiz.questionType || questionType || 'mcq';
       }
 
       const parsedQuestions = quizData.questions;
@@ -413,7 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const correctAnswerStr = String(correctAnswer).toLowerCase().trim();
           
           // For MCQ and assertion-reason, exact match
-          if (quizData.questionType === 'mcq' || quizData.questionType === 'assertion-reason') {
+          if (quizQuestionType === 'mcq' || quizQuestionType === 'assertion-reason') {
             if (userAnswerStr === correctAnswerStr) {
               correct++;
             }
@@ -432,16 +446,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const xpGained = Math.max(10, Math.round(score * 0.5 + (correct * 5)));
       const coinsGained = Math.max(1, Math.round(score / 20));
 
-      // Save quiz attempt if we have a real quiz ID
-      if (typeof quizId === 'number') {
-        await storage.createQuizAttempt({
-          userId,
-          quizId,
-          answers: JSON.stringify(answers),
-          score,
-          timeSpent: timeSpent || 0,
-        });
-      }
+      // Always save quiz attempt with comprehensive data
+      await storage.createQuizAttempt({
+        userId,
+        quizId: actualQuizId,
+        subject: quizSubject,
+        difficulty: quizDifficulty,
+        questionType: quizQuestionType,
+        questions: JSON.stringify(parsedQuestions),
+        answers: JSON.stringify(answers),
+        score: score.toString(),
+        timeSpent: timeSpent || 0,
+      });
 
       // Update user XP and coins
       const currentUser = await storage.getUser(userId);
@@ -526,42 +542,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
-      // Get recent quiz attempts with detailed results
+      // Get all quiz attempts with detailed results
       const quizAttempts = await storage.getUserQuizAttempts(userId);
+      
+      if (quizAttempts.length === 0) {
+        return res.json(null);
+      }
+      
       const recentAttempts = quizAttempts.slice(-10); // Last 10 attempts
       
       // Calculate performance patterns
       const subjectPerformance = {};
       const difficultyPerformance = {};
-      let totalCorrect = 0;
-      let totalQuestions = 0;
+      const questionTypePerformance = {};
       let commonMistakes = [];
       
-      for (const attempt of recentAttempts) {
-        const quiz = await storage.getQuiz(attempt.quizId);
-        if (quiz) {
-          const score = parseFloat(attempt.score);
-          const subject = quiz.title.split(' ')[0]; // Extract subject from title
-          const difficulty = quiz.difficulty || 'medium';
-          
-          // Track subject performance
-          if (!subjectPerformance[subject]) {
-            subjectPerformance[subject] = { total: 0, correct: 0, attempts: 0 };
-          }
-          subjectPerformance[subject].attempts++;
-          subjectPerformance[subject].total += score;
-          
-          // Track difficulty performance
-          if (!difficultyPerformance[difficulty]) {
-            difficultyPerformance[difficulty] = { total: 0, attempts: 0 };
-          }
-          difficultyPerformance[difficulty].attempts++;
-          difficultyPerformance[difficulty].total += score;
-          
-          // Analyze answers for common mistakes
-          if (attempt.answers) {
+      for (const attempt of quizAttempts) {
+        const score = parseFloat(attempt.score);
+        const subject = attempt.subject || 'General';
+        const difficulty = attempt.difficulty || 'medium';
+        const questionType = attempt.questionType || 'mcq';
+        
+        // Track subject performance
+        if (!subjectPerformance[subject]) {
+          subjectPerformance[subject] = { total: 0, attempts: 0 };
+        }
+        subjectPerformance[subject].attempts++;
+        subjectPerformance[subject].total += score;
+        
+        // Track difficulty performance
+        if (!difficultyPerformance[difficulty]) {
+          difficultyPerformance[difficulty] = { total: 0, attempts: 0 };
+        }
+        difficultyPerformance[difficulty].attempts++;
+        difficultyPerformance[difficulty].total += score;
+        
+        // Track question type performance
+        if (!questionTypePerformance[questionType]) {
+          questionTypePerformance[questionType] = { total: 0, attempts: 0 };
+        }
+        questionTypePerformance[questionType].attempts++;
+        questionTypePerformance[questionType].total += score;
+        
+        // Analyze answers for common mistakes (only recent attempts to avoid too much data)
+        if (recentAttempts.includes(attempt) && attempt.answers && attempt.questions) {
+          try {
             const answers = JSON.parse(attempt.answers);
-            const questions = JSON.parse(quiz.questions);
+            const questions = JSON.parse(attempt.questions);
             
             questions.forEach((question, index) => {
               const userAnswer = answers[index];
@@ -571,13 +598,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   String(userAnswer).toLowerCase().trim() !== String(correctAnswer).toLowerCase().trim()) {
                 commonMistakes.push({
                   subject,
+                  difficulty,
+                  questionType,
                   question: question.question.substring(0, 100),
                   userAnswer,
                   correctAnswer,
-                  topic: question.topic || subject
+                  topic: question.topic || subject,
+                  attemptId: attempt.id,
+                  attemptDate: attempt.completedAt
                 });
               }
             });
+          } catch (parseError) {
+            console.warn('Error parsing attempt data:', parseError);
           }
         }
       }
@@ -592,11 +625,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         recentAttempts: recentAttempts.map(attempt => ({
           ...attempt,
-          createdAt: attempt.createdAt || new Date().toISOString()
+          completedAt: attempt.completedAt || new Date().toISOString()
         })),
         subjectPerformance,
         difficultyPerformance,
-        commonMistakes: commonMistakes.slice(-10), // Last 10 mistakes
+        questionTypePerformance,
+        commonMistakes: commonMistakes.slice(-15), // Last 15 mistakes
         improvementSuggestions,
         totalAttempts: quizAttempts.length,
         averageScore: quizAttempts.length > 0 

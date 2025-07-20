@@ -27,11 +27,14 @@ interface InteractiveQuizProps {
     questions: QuizQuestion[];
     questionType: string;
   };
+  subject?: string;
+  difficulty?: string;
+  questionType?: string;
   onClose: () => void;
   onComplete: (results: any) => void;
 }
 
-export default function InteractiveQuiz({ quiz, onClose, onComplete }: InteractiveQuizProps) {
+export default function InteractiveQuiz({ quiz, subject, difficulty, questionType, onClose, onComplete }: InteractiveQuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
   const [showResults, setShowResults] = useState(false);
@@ -97,7 +100,9 @@ export default function InteractiveQuiz({ quiz, onClose, onComplete }: Interacti
     const quizResults = {
       answers: userAnswers,
       timeSpent,
-      questionType: quiz.questionType,
+      questionType: questionType || quiz.questionType,
+      subject: subject || 'General',
+      difficulty: difficulty || 'medium',
     };
 
     submitQuizMutation.mutate(quizResults);

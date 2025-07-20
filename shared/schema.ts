@@ -88,9 +88,14 @@ export const quizzes = pgTable("quizzes", {
 export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
-  quizId: integer("quiz_id").notNull().references(() => quizzes.id),
+  quizId: integer("quiz_id").references(() => quizzes.id), // Can be null for external quizzes
+  subject: varchar("subject").notNull(), // Store subject directly
+  difficulty: varchar("difficulty").notNull(), // Store difficulty directly
+  questionType: varchar("question_type").notNull(), // mcq, fill-blank, etc.
+  questions: jsonb("questions").notNull(), // Store the actual questions and correct answers
   answers: jsonb("answers").notNull(), // User's answers
   score: decimal("score").notNull(),
+  timeSpent: integer("time_spent").default(0), // Time in seconds
   completedAt: timestamp("completed_at").defaultNow(),
 });
 

@@ -232,6 +232,9 @@ export default function QuizSelection() {
     return (
       <InteractiveQuiz
         quiz={generatedQuiz}
+        subject={selectedSubjectData?.name || selectedSubject}
+        difficulty={selectedDifficulty}
+        questionType={selectedQuestionType}
         onClose={() => setShowQuiz(false)}
         onComplete={handleQuizComplete}
       />
