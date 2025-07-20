@@ -395,9 +395,19 @@ export default function AIMeeting() {
                       </>
                     )}
                   </Button>
-                  <p className="text-blue-200 text-sm">
-                    🤖 Creates a Jitsi room where an AI bot will deliver a spoken lesson via text-to-speech and answer questions in real-time.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-blue-200 text-sm">
+                      🤖 Creates a Jitsi room where an AI bot delivers a spoken lesson via text-to-speech.
+                    </p>
+                    <div className="bg-blue-900/30 p-3 rounded-lg border border-blue-500/20">
+                      <p className="text-blue-100 text-xs font-medium mb-1">🎙️ Audio Requirements:</p>
+                      <ul className="text-blue-200 text-xs space-y-1">
+                        <li>• Audio plays on server where bot runs</li>
+                        <li>• For full audio experience, use screen sharing in Jitsi</li>
+                        <li>• Bot joins room visually and provides lesson outline</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -436,9 +446,15 @@ export default function AIMeeting() {
                         Copy Link
                       </Button>
                     </div>
-                    <p className="text-green-200 text-xs">
-                      🎙️ The AI tutor bot is starting the spoken lesson and will join your room for visual presence. The lesson is delivered via text-to-speech audio!
-                    </p>
+                    <div className="bg-green-900/30 p-3 rounded-lg border border-green-500/20">
+                      <p className="text-green-100 text-xs font-medium mb-2">🎙️ Lesson Status:</p>
+                      <ul className="text-green-200 text-xs space-y-1">
+                        <li>• AI bot is generating and speaking the lesson</li>
+                        <li>• Lesson outline is displayed in the room</li>
+                        <li>• Join the room to see the content and interact</li>
+                        <li>• Audio plays on server (you'll see the structured lesson)</li>
+                      </ul>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

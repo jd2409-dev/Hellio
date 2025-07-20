@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { spawn } from 'child_process';
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -823,7 +824,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Creating AI lesson meeting for topic: ${topic}`);
 
       // Use Python subprocess to create the meeting
-      const { spawn } = require('child_process');
       const pythonProcess = spawn('python3', ['server/ai-lesson-bot.py', topic, hfToken]);
 
       let output = '';
