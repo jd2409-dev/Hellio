@@ -21,9 +21,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
-  Trash2
+  Trash2,
+  ArrowLeft
 } from "lucide-react";
 import { format, addDays, startOfWeek, endOfWeek, isSameDay, parseISO } from "date-fns";
+import { Link } from "wouter";
 
 export default function StudyPlanner() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -107,11 +109,20 @@ export default function StudyPlanner() {
       <div className="container mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
-              Study Planner
-            </h1>
-            <p className="text-slate-400">Plan your learning journey and stay organized</p>
+          <div className="flex items-center space-x-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-slate-700/50">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
+            <div className="border-l border-slate-600 h-8"></div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
+                Study Planner
+              </h1>
+              <p className="text-slate-400">Plan your learning journey and stay organized</p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">

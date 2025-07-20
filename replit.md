@@ -80,6 +80,15 @@ Key entities include:
 - **Zero-cost Implementation**: Uses free Jitsi rooms and open-source tools for education delivery
 - **Multi-modal Learning**: Combines visual content, spoken explanations, and text-based interactions
 
+### AI Study Planner (Updated January 2025)
+- **Calendar Interface**: Complete calendar system with multiple view modes (calendar, week, day)
+- **AI-Powered Plan Generation**: Uses Gemini API to create personalized study schedules based on exam requirements
+- **Intelligent Scheduling**: Analyzes syllabus content, available study time, and exam dates to optimize learning
+- **Reminder System**: Automatic notifications 30 minutes before scheduled study sessions
+- **Progress Integration**: Completed study plans award XP and integrate with user progress tracking
+- **Manual Planning**: Custom study session creation with priorities, study types, and duration settings
+- **Database Persistence**: PostgreSQL storage for study plans, reminders, and completion tracking
+
 ## Data Flow
 
 ### Authentication Flow
