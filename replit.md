@@ -63,13 +63,21 @@ Key entities include:
 - **Study Streaks**: Daily engagement tracking
 - **Real Data Integration**: Dashboard now shows actual user achievements and stats
 
-### AI Meeting System (New - January 2025)
+### AI Meeting System (Updated January 2025)
 - **Meeting Organization**: Natural language meeting requests (e.g., "Organize a meeting for topic 'motion' for grade 9")
 - **AI-Powered Parsing**: Automatic extraction of topic, subject, grade level, and structured agenda
 - **Interactive Sessions**: Real-time AI tutoring during meetings with contextual responses
 - **Meeting Management**: Database-backed meeting storage with status tracking
 - **Live Chat**: In-meeting chat system with AI assistant for instant help and explanations
 - **Educational Structure**: Pedagogically organized agendas from basic to advanced concepts
+
+### AI Lesson Panel (New - January 2025)
+- **Video Meeting Integration**: Creates Jitsi video rooms with AI bot participation
+- **Spoken Lessons**: AI bot joins rooms and delivers lessons using text-to-speech
+- **Real-time Q&A**: Students can ask questions during video sessions for immediate answers
+- **Hugging Face Integration**: Uses HF Inference API for lesson generation and question answering
+- **Zero-cost Implementation**: Free lesson delivery using open-source tools and APIs
+- **Automated Bot Joining**: Python-based bot automatically joins created Jitsi rooms
 
 ## Data Flow
 
