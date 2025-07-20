@@ -1,0 +1,105 @@
+"""
+AI Live Classroom – zero-cost Replit
+POST /create-meeting with {"topic":"motion grade 9"}
+Returns {"url":"<jitsi_room>","outline":"<text>"}
+"""
+import os, json, random, string, threading, time, requests, subprocess, asyncio
+from flask import Flask, request, jsonify
+from huggingface_hub import InferenceClient
+from seleniumbase import Driver
+from pyvirtualdisplay import Display
+
+# ---------- CONFIG ----------
+HF_TOKEN = os.environ["HF_TOKEN"]
+client   = InferenceClient(token=HF_TOKEN)
+app      = Flask(__name__)
+
+# ---------- HELPERS ----------
+def random_room():
+    return "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+
+def generate_outline(topic):
+    prompt = (f"Write a concise 200-word mini-lesson outline for '{topic}' "
+              f"aimed at grade 9 students. Use bullet points.")
+    return client.text_generation(prompt, max_new_tokens=220).strip()
+
+# ---------- BOT ----------
+def run_bot(jitsi_url, outline):
+    # virtual display so Chromium believes there's a screen
+    display = Display(visible=0, size=(1280, 720))
+    display.start()
+
+    driver = Driver(uc=True, headless2=True, incognito=True, use_wire=True)
+    driver.get(jitsi_url)
+
+    # set name
+    driver.type('input[data-testid="prejoin.displayName"]', "AI Tutor\n")
+    time.sleep(1)
+
+    # create 5-sec silent looping mp4 for fake webcam
+    mp4_path = "/tmp/loop.mp4"
+    subprocess.run([
+        "ffmpeg", "-f", "lavfi", "-i", "testsrc=duration=5:size=640x360:rate=30",
+        "-pix_fmt", "yuv420p", "-y", mp4_path
+    ], check=True, capture_output=True)
+
+    # use Chrome DevTools Protocol to feed the loop as camera
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": """
+            navigator.mediaDevices.getUserMedia = async () => {
+                const stream = await navigator.mediaDevices.getDisplayMedia({video:true});
+                return stream;
+            };
+        """
+    })
+
+    # click "Join meeting"
+    driver.click('button[data-testid="prejoin.joinMeeting"]')
+    time.sleep(3)
+
+    # speak outline via Web-Speech API
+    driver.execute_script("""
+        const utter = new SpeechSynthesisUtterance(arguments[0]);
+        speechSynthesis.speak(utter);
+    """, outline)
+
+    # keep answering chat messages
+    last_chat = ""
+    while True:
+        try:
+            msgs = driver.find_elements("css selector", "[data-testid='chat.message']")
+            if msgs:
+                latest = msgs[-1].text
+                if latest != last_chat and not latest.startswith("AI Tutor"):
+                    last_chat = latest
+                    answer = client.text_generation(
+                        f"Explain in one short sentence: {latest}", max_new_tokens=50
+                    ).strip()
+                    driver.execute_script("""
+                        const msg = arguments[0];
+                        APP.conference.sendTextMessage("AI Tutor: " + msg);
+                        const utter = new SpeechSynthesisUtterance(msg);
+                        speechSynthesis.speak(utter);
+                    """, answer)
+            time.sleep(2)
+        except Exception:
+            break  # room closed
+
+    driver.quit()
+    display.stop()
+
+# ---------- ROUTE ----------
+@app.route("/create-meeting", methods=["POST"])
+def create():
+    data  = request.json
+    topic = data["topic"]
+    room  = f"{topic.replace(' ','-')}-{random_room()}"
+    url   = f"https://meet.jit.si/{room}"
+    outline = generate_outline(topic)
+
+    threading.Thread(target=run_bot, args=(url, outline), daemon=True).start()
+    return jsonify({"url": url, "outline": outline})
+
+# ---------- RUN ----------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)

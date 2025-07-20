@@ -401,12 +401,12 @@ export default function AIMeeting() {
                       🤖 Creates a Jitsi room where an AI bot delivers a spoken lesson via text-to-speech.
                     </p>
                     <div className="bg-blue-900/30 p-3 rounded-lg border border-blue-500/20">
-                      <p className="text-blue-100 text-xs font-medium mb-1">🎓 AI Lesson Features:</p>
+                      <p className="text-blue-100 text-xs font-medium mb-1">🤖 AI Live Classroom Features:</p>
                       <ul className="text-blue-200 text-xs space-y-1">
-                        <li>• Generates comprehensive lesson outlines instantly</li>
-                        <li>• Creates unique Jitsi rooms for each session</li>
-                        <li>• Provides structured educational content</li>
-                        <li>• AI tutor demonstrates text-to-speech capability</li>
+                        <li>• AI bot joins Jitsi room with video presence</li>
+                        <li>• Speaks lesson content using Web Speech API</li>
+                        <li>• Responds to student questions in real-time</li>
+                        <li>• Interactive Q&A session with AI tutor</li>
                       </ul>
                     </div>
                   </div>
@@ -430,20 +430,18 @@ export default function AIMeeting() {
                       <p className="text-slate-300 text-sm whitespace-pre-wrap">{jitsiMeetingData.outline}</p>
                     </div>
                     
-                    {/* Audio Player Section */}
-                    {jitsiMeetingData.audio_url && (
-                      <div className="bg-blue-950/30 p-4 rounded-lg border border-blue-500/20">
+                    {/* AI Bot Features */}
+                    {jitsiMeetingData.bot_features && (
+                      <div className="bg-purple-950/30 p-4 rounded-lg border border-purple-500/20">
                         <div className="flex items-center gap-3 mb-3">
-                          <Volume2 className="w-5 h-5 text-blue-300" />
-                          <h4 className="text-blue-100 font-medium">AI Tutor Audio</h4>
+                          <Brain className="w-5 h-5 text-purple-300" />
+                          <h4 className="text-purple-100 font-medium">AI Bot Capabilities</h4>
                         </div>
-                        <audio controls className="w-full">
-                          <source src={jitsiMeetingData.audio_url} type="audio/wav" />
-                          Your browser does not support the audio element.
-                        </audio>
-                        <p className="text-blue-200 text-xs mt-2">
-                          🎙️ Listen to your AI tutor explain the lesson content
-                        </p>
+                        <ul className="text-purple-200 text-xs space-y-1">
+                          {jitsiMeetingData.bot_features.map((feature: string, index: number) => (
+                            <li key={index}>✅ {feature}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                     <div className="flex gap-3">
