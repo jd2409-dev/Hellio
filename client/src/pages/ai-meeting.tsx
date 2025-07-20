@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -31,7 +32,8 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Settings
+  Settings,
+  Sliders
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -79,6 +81,10 @@ export default function AIMeeting() {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [voiceRate, setVoiceRate] = useState<number[]>([0.8]);
+  const [voicePitch, setVoicePitch] = useState<number[]>([1]);
+  const [voiceVolume, setVoiceVolume] = useState<number[]>([1]);
+  const [voiceEmphasis, setVoiceEmphasis] = useState<string>('normal');
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -225,10 +231,38 @@ export default function AIMeeting() {
 
       console.log('Speaking text:', text.substring(0, 50) + '...');
       
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.8;
-      utterance.pitch = 1;
-      utterance.volume = 1;
+      // Apply voice modulations based on emphasis setting
+      let modifiedText = text;
+      let rateMultiplier = 1;
+      let pitchMultiplier = 1;
+      
+      switch (voiceEmphasis) {
+        case 'excited':
+          modifiedText = text.replace(/\./g, '!').replace(/,/g, ',');
+          rateMultiplier = 1.1;
+          pitchMultiplier = 1.1;
+          break;
+        case 'calm':
+          rateMultiplier = 0.9;
+          pitchMultiplier = 0.95;
+          break;
+        case 'professional':
+          rateMultiplier = 0.95;
+          pitchMultiplier = 1;
+          break;
+        case 'friendly':
+          rateMultiplier = 1.05;
+          pitchMultiplier = 1.05;
+          break;
+        default: // normal
+          rateMultiplier = 1;
+          pitchMultiplier = 1;
+      }
+      
+      const utterance = new SpeechSynthesisUtterance(modifiedText);
+      utterance.rate = voiceRate[0] * rateMultiplier;
+      utterance.pitch = voicePitch[0] * pitchMultiplier;
+      utterance.volume = voiceVolume[0];
       
       // Use selected voice
       const voices = speechSynthRef.current.getVoices();
@@ -588,27 +622,102 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                     
                     {showVoiceSettings && (
                       <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-600">
-                        <div className="space-y-3">
-                          <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                              <SelectValue placeholder="Choose AI voice type" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-700 border-slate-600">
-                              {availableVoices.map((voice) => (
-                                <SelectItem key={voice.name} value={voice.name} className="text-white hover:bg-slate-600">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{voice.name}</span>
-                                    <span className="text-xs text-slate-400">
-                                      {voice.lang} • {voice.localService ? 'Local' : 'Network'}
-                                    </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="text-white text-sm font-medium mb-2 block">Voice Selection</Label>
+                            <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                              <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                                <SelectValue placeholder="Choose AI voice type" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-700 border-slate-600">
+                                {availableVoices.map((voice) => (
+                                  <SelectItem key={voice.name} value={voice.name} className="text-white hover:bg-slate-600">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{voice.name}</span>
+                                      <span className="text-xs text-slate-400">
+                                        {voice.lang} • {voice.localService ? 'Local' : 'Network'}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-white text-xs font-medium mb-2 block">
+                                Speech Rate: {voiceRate[0].toFixed(1)}x
+                              </Label>
+                              <Slider
+                                value={voiceRate}
+                                onValueChange={setVoiceRate}
+                                min={0.1}
+                                max={2.0}
+                                step={0.1}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between text-xs text-slate-400 mt-1">
+                                <span>Slow</span>
+                                <span>Fast</span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-white text-xs font-medium mb-2 block">
+                                Voice Pitch: {voicePitch[0].toFixed(1)}
+                              </Label>
+                              <Slider
+                                value={voicePitch}
+                                onValueChange={setVoicePitch}
+                                min={0.1}
+                                max={2.0}
+                                step={0.1}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between text-xs text-slate-400 mt-1">
+                                <span>Low</span>
+                                <span>High</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-white text-xs font-medium mb-2 block">
+                              Volume: {Math.round(voiceVolume[0] * 100)}%
+                            </Label>
+                            <Slider
+                              value={voiceVolume}
+                              onValueChange={setVoiceVolume}
+                              min={0.1}
+                              max={1.0}
+                              step={0.1}
+                              className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-slate-400 mt-1">
+                              <span>Quiet</span>
+                              <span>Loud</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-white text-xs font-medium mb-2 block">Voice Style</Label>
+                            <Select value={voiceEmphasis} onValueChange={setVoiceEmphasis}>
+                              <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-700 border-slate-600">
+                                <SelectItem value="normal" className="text-white hover:bg-slate-600">Normal</SelectItem>
+                                <SelectItem value="excited" className="text-white hover:bg-slate-600">Excited</SelectItem>
+                                <SelectItem value="calm" className="text-white hover:bg-slate-600">Calm</SelectItem>
+                                <SelectItem value="professional" className="text-white hover:bg-slate-600">Professional</SelectItem>
+                                <SelectItem value="friendly" className="text-white hover:bg-slate-600">Friendly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                           
                           {selectedVoice && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 pt-2">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -619,21 +728,18 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                                     const voice = availableVoices.find(v => v.name === selectedVoice);
                                     if (voice) {
                                       utterance.voice = voice;
-                                      utterance.rate = 0.8;
-                                      utterance.pitch = 1;
-                                      utterance.volume = 1;
+                                      utterance.rate = voiceRate[0];
+                                      utterance.pitch = voicePitch[0];
+                                      utterance.volume = voiceVolume[0];
                                       window.speechSynthesis.speak(utterance);
                                     }
                                   }
                                 }}
-                                className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white"
+                                className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white flex-1"
                               >
                                 <Volume2 className="w-4 h-4 mr-1" />
-                                Test Voice
+                                Test Voice & Modulation
                               </Button>
-                              <span className="text-xs text-slate-400">
-                                Preview how the AI will sound during lessons
-                              </span>
                             </div>
                           )}
                         </div>
@@ -908,9 +1014,13 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                           
                           {/* In-Meeting Voice Settings */}
                           {showVoiceSettings && (
-                            <div className="bg-slate-800/60 p-3 rounded-lg border border-slate-600 max-w-sm mx-auto">
+                            <div className="bg-slate-800/60 p-3 rounded-lg border border-slate-600 max-w-md mx-auto">
                               <div className="space-y-3">
-                                <Label className="text-white text-sm font-medium">AI Voice Selection</Label>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Sliders className="w-4 h-4 text-blue-300" />
+                                  <Label className="text-white text-sm font-medium">Voice & Modulation</Label>
+                                </div>
+                                
                                 <Select value={selectedVoice} onValueChange={setSelectedVoice}>
                                   <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
                                     <SelectValue placeholder="Choose voice" />
@@ -928,6 +1038,48 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                                     ))}
                                   </SelectContent>
                                 </Select>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-white text-xs mb-1 block">Rate: {voiceRate[0].toFixed(1)}x</Label>
+                                    <Slider
+                                      value={voiceRate}
+                                      onValueChange={setVoiceRate}
+                                      min={0.1}
+                                      max={2.0}
+                                      step={0.1}
+                                      className="w-full"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-white text-xs mb-1 block">Pitch: {voicePitch[0].toFixed(1)}</Label>
+                                    <Slider
+                                      value={voicePitch}
+                                      onValueChange={setVoicePitch}
+                                      min={0.1}
+                                      max={2.0}
+                                      step={0.1}
+                                      className="w-full"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <Label className="text-white text-xs mb-1 block">Style</Label>
+                                  <Select value={voiceEmphasis} onValueChange={setVoiceEmphasis}>
+                                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-700 border-slate-600">
+                                      <SelectItem value="normal" className="text-white hover:bg-slate-600">Normal</SelectItem>
+                                      <SelectItem value="excited" className="text-white hover:bg-slate-600">Excited</SelectItem>
+                                      <SelectItem value="calm" className="text-white hover:bg-slate-600">Calm</SelectItem>
+                                      <SelectItem value="professional" className="text-white hover:bg-slate-600">Professional</SelectItem>
+                                      <SelectItem value="friendly" className="text-white hover:bg-slate-600">Friendly</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
                                 {selectedVoice && (
                                   <Button
                                     size="sm"
@@ -939,9 +1091,9 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                                         const voice = availableVoices.find(v => v.name === selectedVoice);
                                         if (voice) {
                                           utterance.voice = voice;
-                                          utterance.rate = 0.8;
-                                          utterance.pitch = 1;
-                                          utterance.volume = 1;
+                                          utterance.rate = voiceRate[0];
+                                          utterance.pitch = voicePitch[0];
+                                          utterance.volume = voiceVolume[0];
                                           window.speechSynthesis.speak(utterance);
                                         }
                                       }
