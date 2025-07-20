@@ -52,6 +52,12 @@ interface ChatMessage {
   meetingId?: number;
 }
 
+interface JitsiMeetingData {
+  url: string;
+  outline: string;
+  status: string;
+}
+
 export default function AIMeeting() {
   const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
   const [isInMeeting, setIsInMeeting] = useState(false);
@@ -61,6 +67,8 @@ export default function AIMeeting() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [meetingProgress, setMeetingProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState(0);
+  const [jitsiMeetingData, setJitsiMeetingData] = useState<JitsiMeetingData | null>(null);
+  const [lessonTopic, setLessonTopic] = useState('');
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -120,6 +128,39 @@ export default function AIMeeting() {
       toast({
         title: "Error",
         description: "Failed to create meeting. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create Jitsi meeting with AI bot
+  const createJitsiMeetingMutation = useMutation({
+    mutationFn: async (topic: string) => {
+      const response = await apiRequest("POST", "/api/create-meeting", { topic });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setJitsiMeetingData(data);
+      toast({
+        title: "AI Lesson Created!",
+        description: "Your AI bot is joining the room and will start the lesson shortly.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create Jitsi meeting. Please check if HF_TOKEN is configured.",
         variant: "destructive",
       });
     },
@@ -307,6 +348,101 @@ export default function AIMeeting() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Lesson Panel - Jitsi Video Meetings */}
+            <Card className="bg-gradient-to-br from-blue-900/50 to-indigo-900/50 border-blue-500/30 backdrop-blur-sm mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Video className="w-5 h-5 mr-2 text-blue-400" />
+                  AI Lesson Panel (Video Meetings)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Input
+                      placeholder="Enter lesson topic (e.g., 'Photosynthesis', 'Quadratic Equations')"
+                      value={lessonTopic}
+                      onChange={(e) => setLessonTopic(e.target.value)}
+                      className="bg-slate-900/50 border-slate-600 text-white placeholder-slate-400"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && lessonTopic.trim()) {
+                          createJitsiMeetingMutation.mutate(lessonTopic);
+                          setLessonTopic('');
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      if (lessonTopic.trim()) {
+                        createJitsiMeetingMutation.mutate(lessonTopic);
+                        setLessonTopic('');
+                      }
+                    }}
+                    disabled={createJitsiMeetingMutation.isPending || !lessonTopic.trim()}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 w-full"
+                  >
+                    {createJitsiMeetingMutation.isPending ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        Creating Video Lesson...
+                      </>
+                    ) : (
+                      <>
+                        <Video className="w-4 h-4 mr-2" />
+                        Create AI Video Lesson
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-blue-200 text-sm">
+                    🤖 Creates a Jitsi room where an AI bot will deliver a spoken lesson and answer questions in real-time.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Jitsi Meeting Result */}
+            {jitsiMeetingData && (
+              <Card className="bg-gradient-to-br from-green-900/50 to-emerald-900/50 border-green-500/30 backdrop-blur-sm mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <Sparkles className="w-5 h-5 mr-2 text-green-400" />
+                    AI Video Lesson Ready!
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="bg-slate-900/50 p-4 rounded-lg">
+                      <h4 className="font-semibold text-white mb-2">Lesson Outline:</h4>
+                      <p className="text-slate-300 text-sm whitespace-pre-wrap">{jitsiMeetingData.outline}</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => window.open(jitsiMeetingData.url, '_blank')}
+                        className="bg-green-500 hover:bg-green-600 flex-1"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        Join Video Lesson
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(jitsiMeetingData.url);
+                          toast({ title: "Link copied to clipboard!" });
+                        }}
+                        variant="outline"
+                        className="border-green-500 text-green-400 hover:bg-green-500 hover:text-white"
+                      >
+                        Copy Link
+                      </Button>
+                    </div>
+                    <p className="text-green-200 text-xs">
+                      The AI tutor bot is joining your room and will begin the lesson shortly. You can ask follow-up questions during the session!
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Meetings List */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

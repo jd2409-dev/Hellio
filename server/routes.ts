@@ -805,6 +805,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Lesson Panel - Create Jitsi meeting with AI bot
+  app.post('/api/create-meeting', isAuthenticated, async (req: any, res) => {
+    try {
+      const { topic } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ message: 'Topic is required' });
+      }
+
+      // Check for HF_TOKEN
+      const hfToken = process.env.HF_TOKEN;
+      if (!hfToken) {
+        return res.status(500).json({ message: 'Hugging Face token not configured' });
+      }
+
+      console.log(`Creating AI lesson meeting for topic: ${topic}`);
+
+      // Use Python subprocess to create the meeting
+      const { spawn } = require('child_process');
+      const pythonProcess = spawn('python3', ['server/ai-lesson-bot.py', topic, hfToken]);
+
+      let output = '';
+      let errorOutput = '';
+
+      pythonProcess.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code: number) => {
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output.trim());
+            res.json(result);
+          } catch (parseError) {
+            console.error('Parse error:', parseError);
+            res.status(500).json({ message: 'Failed to parse response' });
+          }
+        } else {
+          console.error('Python process error:', errorOutput);
+          res.status(500).json({ message: 'Failed to create meeting' });
+        }
+      });
+
+      // Set timeout for the request
+      setTimeout(() => {
+        pythonProcess.kill();
+        res.status(408).json({ message: 'Request timeout' });
+      }, 30000); // 30 second timeout
+
+    } catch (error) {
+      console.error('Create meeting error:', error);
+      res.status(500).json({ message: 'Failed to create meeting' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
