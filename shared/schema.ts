@@ -183,6 +183,54 @@ export const performanceMetrics = pgTable("performance_metrics", {
   lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
+// Study Plans table
+export const studyPlans = pgTable("study_plans", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subjectId: integer("subject_id").notNull().references(() => subjects.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  plannedDate: timestamp("planned_date").notNull(),
+  duration: integer("duration").notNull(), // in minutes
+  priority: varchar("priority").notNull().default("medium"), // high, medium, low
+  studyType: varchar("study_type").notNull().default("reading"), // reading, practice, revision, quiz, project
+  status: varchar("status").notNull().default("pending"), // pending, completed, skipped
+  completedAt: timestamp("completed_at"),
+  reminderSet: boolean("reminder_set").default(false),
+  aiGenerated: boolean("ai_generated").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Study Plan Reminders table
+export const studyPlanReminders = pgTable("study_plan_reminders", {
+  id: serial("id").primaryKey(),
+  studyPlanId: integer("study_plan_id").notNull().references(() => studyPlans.id),
+  reminderTime: timestamp("reminder_time").notNull(),
+  reminderType: varchar("reminder_type").notNull().default("notification"), // notification, email
+  message: text("message"),
+  sent: boolean("sent").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Types
+export type StudyPlan = typeof studyPlans.$inferSelect;
+export type InsertStudyPlan = typeof studyPlans.$inferInsert;
+export type StudyPlanReminder = typeof studyPlanReminders.$inferSelect;
+export type InsertStudyPlanReminder = typeof studyPlanReminders.$inferInsert;
+
+// Create schemas using drizzle-zod
+export const insertStudyPlanSchema = createInsertSchema(studyPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStudyPlanReminderSchema = createInsertSchema(studyPlanReminders).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userSubjects: many(userSubjects),
@@ -194,6 +242,17 @@ export const usersRelations = relations(users, ({ many }) => ({
   studySessions: many(studySessions),
   performanceMetrics: many(performanceMetrics),
   aiMeetings: many(aiMeetings),
+  studyPlans: many(studyPlans),
+}));
+
+export const studyPlansRelations = relations(studyPlans, ({ one, many }) => ({
+  user: one(users, { fields: [studyPlans.userId], references: [users.id] }),
+  subject: one(subjects, { fields: [studyPlans.subjectId], references: [subjects.id] }),
+  reminders: many(studyPlanReminders),
+}));
+
+export const studyPlanRemindersRelations = relations(studyPlanReminders, ({ one }) => ({
+  studyPlan: one(studyPlans, { fields: [studyPlanReminders.studyPlanId], references: [studyPlans.id] }),
 }));
 
 export const aiMeetingsRelations = relations(aiMeetings, ({ one, many }) => ({

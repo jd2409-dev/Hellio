@@ -984,6 +984,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Study Planner API Routes
+  
+  // Get user's study plans
+  app.get('/api/study-plans', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const studyPlans = await storage.getUserStudyPlans(userId);
+      res.json(studyPlans);
+    } catch (error) {
+      console.error("Get study plans error:", error);
+      res.status(500).json({ message: "Failed to fetch study plans" });
+    }
+  });
+
+  // Create a new study plan
+  app.post('/api/study-plans', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate request data
+      const planData = {
+        userId,
+        subjectId: parseInt(req.body.subjectId),
+        title: req.body.title,
+        description: req.body.description || null,
+        plannedDate: new Date(req.body.plannedDate),
+        duration: parseInt(req.body.duration),
+        priority: req.body.priority || 'medium',
+        studyType: req.body.studyType || 'reading',
+        status: 'pending',
+        aiGenerated: false,
+      };
+
+      const studyPlan = await storage.createStudyPlan(planData);
+      res.json(studyPlan);
+    } catch (error) {
+      console.error("Create study plan error:", error);
+      res.status(500).json({ message: "Failed to create study plan" });
+    }
+  });
+
+  // Generate AI study plan
+  app.post('/api/study-plans/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { generateAIStudyPlan, generateStudyPlanSummary } = await import("./services/studyPlanGenerator");
+      
+      const request = {
+        subjectId: parseInt(req.body.subjectId),
+        examType: req.body.examType,
+        examDate: req.body.examDate,
+        currentDate: new Date().toISOString(),
+        syllabus: req.body.syllabus,
+        dailyStudyHours: parseInt(req.body.dailyStudyHours),
+      };
+
+      // Generate AI study plan
+      const aiPlan = await generateAIStudyPlan(request);
+      
+      // Create study plans in database
+      const createdPlans = [];
+      for (const item of aiPlan) {
+        const planData = {
+          userId,
+          subjectId: request.subjectId,
+          title: item.title,
+          description: item.description,
+          plannedDate: new Date(item.plannedDate),
+          duration: item.duration,
+          priority: item.priority,
+          studyType: item.studyType,
+          status: 'pending',
+          aiGenerated: true,
+        };
+
+        const createdPlan = await storage.createStudyPlan(planData);
+        createdPlans.push(createdPlan);
+
+        // Create reminders if needed
+        if (planData.plannedDate > new Date()) {
+          const reminderTime = new Date(planData.plannedDate.getTime() - 30 * 60 * 1000); // 30 min before
+          if (reminderTime > new Date()) {
+            await storage.createStudyPlanReminder({
+              studyPlanId: createdPlan.id,
+              reminderTime,
+              reminderType: 'notification',
+              message: `Reminder: "${item.title}" starts in 30 minutes. Duration: ${item.duration} minutes.`,
+              sent: false,
+            });
+          }
+        }
+      }
+
+      // Generate summary
+      const summary = await generateStudyPlanSummary(aiPlan);
+
+      res.json({
+        plans: createdPlans,
+        summary,
+        message: `Generated ${createdPlans.length} study sessions for your ${request.examType}`,
+      });
+    } catch (error) {
+      console.error("Generate AI study plan error:", error);
+      res.status(500).json({ message: "Failed to generate AI study plan" });
+    }
+  });
+
+  // Update study plan
+  app.patch('/api/study-plans/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const planId = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      // Remove fields that shouldn't be updated directly
+      delete updateData.userId;
+      delete updateData.createdAt;
+      
+      const updatedPlan = await storage.updateStudyPlan(planId, updateData);
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Update study plan error:", error);
+      res.status(500).json({ message: "Failed to update study plan" });
+    }
+  });
+
+  // Delete study plan
+  app.delete('/api/study-plans/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const planId = parseInt(req.params.id);
+      await storage.deleteStudyPlan(planId);
+      res.json({ message: "Study plan deleted successfully" });
+    } catch (error) {
+      console.error("Delete study plan error:", error);
+      res.status(500).json({ message: "Failed to delete study plan" });
+    }
+  });
+
+  // Mark study plan as completed
+  app.post('/api/study-plans/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const planId = parseInt(req.params.id);
+      const updatedPlan = await storage.updateStudyPlan(planId, {
+        status: 'completed',
+        completedAt: new Date(),
+      });
+
+      // Award XP for completing study plan
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (user) {
+        const xpGained = Math.floor(updatedPlan.duration / 15); // 1 XP per 15 minutes
+        await storage.updateUserXP(userId, user.xp + xpGained, user.coins + Math.floor(xpGained / 2));
+        
+        // Track study session
+        const { analyticsService } = await import("./services/analyticsService");
+        await analyticsService.trackStudySession({
+          userId,
+          subjectId: updatedPlan.subjectId,
+          activityType: 'study_plan',
+          duration: updatedPlan.duration * 60, // Convert to seconds
+          completedAt: new Date(),
+        });
+      }
+
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Complete study plan error:", error);
+      res.status(500).json({ message: "Failed to complete study plan" });
+    }
+  });
+
   // Serve audio files
   app.use('/audio', express.static('public/audio'));
 

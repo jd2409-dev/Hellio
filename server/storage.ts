@@ -10,6 +10,8 @@ import {
   chatSessions,
   aiMeetings,
   meetingMessages,
+  studyPlans,
+  studyPlanReminders,
   type User,
   type UpsertUser,
   type Subject,
@@ -29,6 +31,10 @@ import {
   type InsertAIMeeting,
   type MeetingMessage,
   type InsertMeetingMessage,
+  type StudyPlan,
+  type InsertStudyPlan,
+  type StudyPlanReminder,
+  type InsertStudyPlanReminder,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -80,6 +86,17 @@ export interface IStorage {
   // Meeting Message operations
   createMeetingMessage(message: InsertMeetingMessage): Promise<MeetingMessage>;
   getMeetingMessages(meetingId: number): Promise<MeetingMessage[]>;
+
+  // Study Plan operations
+  createStudyPlan(plan: InsertStudyPlan): Promise<StudyPlan>;
+  getUserStudyPlans(userId: string): Promise<StudyPlan[]>;
+  getStudyPlan(id: number): Promise<StudyPlan | undefined>;
+  updateStudyPlan(id: number, data: Partial<InsertStudyPlan>): Promise<StudyPlan>;
+  deleteStudyPlan(id: number): Promise<void>;
+  
+  // Study Plan Reminder operations
+  createStudyPlanReminder(reminder: InsertStudyPlanReminder): Promise<StudyPlanReminder>;
+  getStudyPlanReminders(studyPlanId: number): Promise<StudyPlanReminder[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -272,6 +289,68 @@ export class DatabaseStorage implements IStorage {
   
   async getMeetingMessages(meetingId: number): Promise<MeetingMessage[]> {
     return await db.select().from(meetingMessages).where(eq(meetingMessages.meetingId, meetingId)).orderBy(meetingMessages.timestamp);
+  }
+
+  // Study Plan operations
+  async createStudyPlan(plan: InsertStudyPlan): Promise<StudyPlan> {
+    const [created] = await db.insert(studyPlans).values(plan).returning();
+    return created;
+  }
+
+  async getUserStudyPlans(userId: string): Promise<StudyPlan[]> {
+    return db.select({
+      id: studyPlans.id,
+      userId: studyPlans.userId,
+      subjectId: studyPlans.subjectId,
+      title: studyPlans.title,
+      description: studyPlans.description,
+      plannedDate: studyPlans.plannedDate,
+      duration: studyPlans.duration,
+      priority: studyPlans.priority,
+      studyType: studyPlans.studyType,
+      status: studyPlans.status,
+      completedAt: studyPlans.completedAt,
+      reminderSet: studyPlans.reminderSet,
+      aiGenerated: studyPlans.aiGenerated,
+      createdAt: studyPlans.createdAt,
+      updatedAt: studyPlans.updatedAt,
+      subject: {
+        id: subjects.id,
+        name: subjects.name,
+        description: subjects.description,
+      }
+    })
+    .from(studyPlans)
+    .leftJoin(subjects, eq(studyPlans.subjectId, subjects.id))
+    .where(eq(studyPlans.userId, userId))
+    .orderBy(studyPlans.plannedDate);
+  }
+
+  async getStudyPlan(id: number): Promise<StudyPlan | undefined> {
+    const [plan] = await db.select().from(studyPlans).where(eq(studyPlans.id, id));
+    return plan;
+  }
+
+  async updateStudyPlan(id: number, data: Partial<InsertStudyPlan>): Promise<StudyPlan> {
+    const [updated] = await db.update(studyPlans)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(studyPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStudyPlan(id: number): Promise<void> {
+    await db.delete(studyPlans).where(eq(studyPlans.id, id));
+  }
+
+  // Study Plan Reminder operations
+  async createStudyPlanReminder(reminder: InsertStudyPlanReminder): Promise<StudyPlanReminder> {
+    const [created] = await db.insert(studyPlanReminders).values(reminder).returning();
+    return created;
+  }
+
+  async getStudyPlanReminders(studyPlanId: number): Promise<StudyPlanReminder[]> {
+    return db.select().from(studyPlanReminders).where(eq(studyPlanReminders.studyPlanId, studyPlanId));
   }
 }
 

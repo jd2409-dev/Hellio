@@ -189,7 +189,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Action Cards */}
-        <div className="grid lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
           {/* AI Tutor */}
           <Link href="/ai-tutor">
             <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
@@ -270,6 +270,23 @@ export default function Dashboard() {
                 <Button className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 w-full">
                   <BarChart3 className="mr-2 h-4 w-4" />
                   View Analysis
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Study Planner */}
+          <Link href="/study-planner">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-rose-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+              <CardContent className="p-8 text-center">
+                <div className="w-20 h-20 bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Calendar className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4">Study Planner</h3>
+                <p className="text-slate-400 mb-6">AI-powered study schedules and exam planning</p>
+                <Button className="bg-gradient-to-r from-rose-500 to-pink-500 text-white hover:from-rose-600 hover:to-pink-600 w-full">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Plan Studies
                 </Button>
               </CardContent>
             </Card>

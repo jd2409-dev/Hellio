@@ -13,6 +13,7 @@ import QuizSelection from "@/pages/quiz-selection";
 import SubjectDetail from "@/pages/subject-detail";
 import Analytics from "@/pages/analytics";
 import Reflection from "@/pages/reflection";
+import StudyPlanner from "@/pages/study-planner";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/subject/:id" component={SubjectDetail} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/reflection" component={Reflection} />
+          <Route path="/study-planner" component={StudyPlanner} />
         </>
       )}
       <Route component={NotFound} />
