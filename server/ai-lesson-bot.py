@@ -129,17 +129,22 @@ This lesson provides a foundation for understanding {topic} at a grade 9 level, 
         return f"https://meet.jit.si/{room_name}"
     
     def setup_browser(self):
-        """Setup headless Chrome browser for Jitsi"""
+        """Setup Chrome browser for Jitsi with audio capabilities"""
         try:
             chrome_options = Options()
-            chrome_options.add_argument("--headless")
+            # Remove headless mode to allow audio
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
+            # Audio-related flags
             chrome_options.add_argument("--use-fake-ui-for-media-stream")
             chrome_options.add_argument("--use-fake-device-for-media-stream")
+            chrome_options.add_argument("--allow-file-access-from-files")
             chrome_options.add_argument("--disable-web-security")
             chrome_options.add_argument("--allow-running-insecure-content")
+            chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+            # Add virtual display for headless audio
+            chrome_options.add_argument("--virtual-time-budget=10000")
             
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -268,28 +273,36 @@ This lesson provides a foundation for understanding {topic} at a grade 9 level, 
             print(f"🚀 Starting AI lesson session at: {room_url}")
             print("📚 Lesson will be delivered via text-to-speech")
             
-            # Give students time to join the room
-            print("⏳ Waiting 5 seconds for students to join the room...")
-            time.sleep(5)
-            
-            # Deliver the spoken lesson immediately
-            print("🎯 Beginning lesson delivery...")
-            lesson_success = self.speak_lesson(outline)
-            
-            if lesson_success:
-                print("✅ Lesson delivered successfully via TTS")
-                print("📢 Students can hear the AI tutor speaking!")
+            # Try to setup browser first for Jitsi audio streaming
+            if self.setup_browser():
+                print("✅ Browser setup successful")
+                
+                # Join Jitsi room first
+                if self.join_jitsi_room(room_url):
+                    print("✅ Successfully joined Jitsi room")
+                    
+                    # Wait for students to join
+                    print("⏳ Waiting 10 seconds for students to join...")
+                    time.sleep(10)
+                    
+                    # Now deliver the lesson with audio
+                    print("🎯 Beginning lesson delivery...")
+                    lesson_success = self.speak_lesson(outline)
+                    
+                    if lesson_success:
+                        print("✅ Lesson delivered successfully via TTS")
+                        print("📢 Audio should be transmitted through Jitsi room")
+                    
+                    # Keep session alive for questions
+                    print("💬 AI Tutor session active - ready for questions")
+                    time.sleep(300)  # 5 minutes
+                    
+                else:
+                    print("⚠️ Could not join Jitsi room, delivering lesson locally")
+                    self.speak_lesson(outline)
             else:
-                print("⚠️ Lesson delivery encountered issues")
-            
-            # Skip browser automation for now (focus on audio delivery)
-            print("🎙️ Audio lesson completed - skipping browser automation")
-            print("💡 Students should be able to hear the spoken lesson on their device")
-            
-            # Keep session alive briefly for demonstration
-            print("💬 AI Tutor session completed")
-            print("⏰ Session duration: lesson delivery completed")
-            time.sleep(5)  # Brief session for demo
+                print("⚠️ Browser setup failed, delivering lesson locally")
+                self.speak_lesson(outline)
             
         except Exception as e:
             print(f"❌ Lesson session error: {e}")

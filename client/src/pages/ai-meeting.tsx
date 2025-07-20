@@ -447,13 +447,17 @@ export default function AIMeeting() {
                       </Button>
                     </div>
                     <div className="bg-green-900/30 p-3 rounded-lg border border-green-500/20">
-                      <p className="text-green-100 text-xs font-medium mb-2">🎙️ Lesson Status:</p>
+                      <p className="text-green-100 text-xs font-medium mb-2">🎙️ AI Lesson Active:</p>
                       <ul className="text-green-200 text-xs space-y-1">
-                        <li>• AI bot is generating and speaking the lesson</li>
-                        <li>• Lesson outline is displayed in the room</li>
-                        <li>• Join the room to see the content and interact</li>
-                        <li>• Audio plays on server (you'll see the structured lesson)</li>
+                        <li>✅ AI tutor is speaking the lesson (server-side TTS)</li>
+                        <li>✅ Structured lesson content generated</li>
+                        <li>✅ Jitsi room ready for student interaction</li>
+                        <li>🎯 Click "Join Video Lesson" to see the lesson outline</li>
                       </ul>
+                      <div className="mt-2 p-2 bg-green-800/20 rounded border border-green-600/30">
+                        <p className="text-green-100 text-xs font-semibold">How it works:</p>
+                        <p className="text-green-200 text-xs">The AI speaks on the server while you get the complete lesson content in the video room!</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

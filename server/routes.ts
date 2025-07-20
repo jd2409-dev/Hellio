@@ -823,8 +823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Creating AI lesson meeting for topic: ${topic}`);
 
-      // Use Python subprocess to create the meeting
-      const pythonProcess = spawn('python3', ['server/ai-lesson-bot.py', topic, hfToken]);
+      // Use Python subprocess to create the meeting (try simple audio version first)
+      const pythonProcess = spawn('python3', ['server/audio-lesson-simple.py', topic, hfToken]);
 
       let output = '';
       let errorOutput = '';

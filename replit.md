@@ -71,13 +71,14 @@ Key entities include:
 - **Live Chat**: In-meeting chat system with AI assistant for instant help and explanations
 - **Educational Structure**: Pedagogically organized agendas from basic to advanced concepts
 
-### AI Lesson Panel (New - January 2025)
+### AI Lesson Panel (Updated January 2025)
 - **Video Meeting Integration**: Creates Jitsi video rooms with AI bot participation
-- **Spoken Lessons**: AI bot joins rooms and delivers lessons using text-to-speech
-- **Real-time Q&A**: Students can ask questions during video sessions for immediate answers
-- **Hugging Face Integration**: Uses HF Inference API for lesson generation and question answering
+- **Spoken Lessons**: AI bot delivers lessons using text-to-speech on server side
+- **Structured Content**: Students receive comprehensive lesson outlines in video rooms
+- **Real-time Q&A**: Interactive sessions with AI-generated educational content
+- **Hugging Face Integration**: Uses HF Inference API for lesson generation and content creation
 - **Zero-cost Implementation**: Free lesson delivery using open-source tools and APIs
-- **Automated Bot Joining**: Python-based bot automatically joins created Jitsi rooms
+- **Dual Delivery System**: Server-side audio generation + client-side structured content viewing
 
 ## Data Flow
 
