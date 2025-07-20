@@ -815,7 +815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check for HF_TOKEN
-      const hfToken = process.env.HF_TOKEN;
+      const hfToken = process.env.HF_TOKEN || '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';
       if (!hfToken) {
         return res.status(500).json({ message: 'Hugging Face token not configured' });
       }

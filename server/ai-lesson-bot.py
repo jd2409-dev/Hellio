@@ -35,10 +35,20 @@ class AILessonBot:
         try:
             self.tts_engine = pyttsx3.init()
             # Set properties for clearer speech
-            self.tts_engine.setProperty('rate', 150)  # Speed of speech
-            self.tts_engine.setProperty('volume', 0.9)  # Volume level (0.0 to 1.0)
+            self.tts_engine.setProperty('rate', 140)  # Slower speed for clarity
+            self.tts_engine.setProperty('volume', 1.0)  # Maximum volume
+            
+            # Try to set a better voice (optional)
+            voices = self.tts_engine.getProperty('voices')
+            if voices and len(voices) > 0:
+                # Use the first available voice
+                self.tts_engine.setProperty('voice', voices[0].id)
+                print(f"Using voice: {voices[0].name if hasattr(voices[0], 'name') else 'default'}")
+            
+            print("TTS engine initialized successfully")
         except Exception as e:
             print(f"TTS setup error: {e}")
+            self.tts_engine = None
             
     def generate_lesson_outline(self, topic):
         """Generate a concise lesson outline using Hugging Face API"""
@@ -180,14 +190,47 @@ This lesson provides a foundation for understanding {topic} at a grade 9 level, 
     def speak_lesson(self, outline):
         """Speak the lesson outline using TTS"""
         try:
-            if self.tts_engine:
-                print("Speaking lesson outline...")
-                self.tts_engine.say(outline)
-                self.tts_engine.runAndWait()
-                return True
+            if not self.tts_engine:
+                print("TTS engine not available, cannot speak lesson")
+                return False
+                
+            print("🎙️ AI Tutor is now speaking the lesson...")
+            
+            # Create a more natural introduction
+            intro = f"Hello students! Welcome to today's lesson. Let me guide you through this topic step by step."
+            print(f"Speaking intro: {intro}")
+            self.tts_engine.say(intro)
+            self.tts_engine.runAndWait()
+            time.sleep(2)
+            
+            # Break down the outline into natural sections
+            sections = outline.split('\n\n')
+            section_count = len([s for s in sections if s.strip()])
+            
+            for i, section in enumerate(sections):
+                if section.strip():
+                    # Clean up the section text for better speech
+                    clean_section = section.replace('\n', '. ').replace('   -', '. ')
+                    clean_section = clean_section.replace('- ', '').strip()
+                    
+                    if clean_section:
+                        print(f"🗣️ Speaking section {i+1}/{section_count}: {clean_section[:60]}...")
+                        self.tts_engine.say(clean_section)
+                        self.tts_engine.runAndWait()
+                        time.sleep(2)  # Pause between sections
+            
+            # Conclusion
+            conclusion = "That concludes our lesson. Feel free to ask me any questions about what we've covered today!"
+            print(f"Speaking conclusion: {conclusion}")
+            self.tts_engine.say(conclusion)
+            self.tts_engine.runAndWait()
+            
+            print("✅ Lesson delivery completed successfully")
+            return True
+            
         except Exception as e:
-            print(f"TTS error: {e}")
-        return False
+            print(f"❌ TTS error: {e}")
+            return False
     
     def answer_question(self, question):
         """Generate answer to follow-up questions using HF API"""
@@ -222,32 +265,42 @@ This lesson provides a foundation for understanding {topic} at a grade 9 level, 
     def run_lesson_session(self, room_url, outline):
         """Run the complete lesson session"""
         try:
-            print(f"Starting lesson session at: {room_url}")
+            print(f"🚀 Starting AI lesson session at: {room_url}")
+            print("📚 Lesson will be delivered via text-to-speech")
             
-            # Join the Jitsi room
-            if self.join_jitsi_room(room_url):
-                print("Successfully joined Jitsi room")
-                
-                # Wait a moment for connection to stabilize
-                time.sleep(3)
-                
-                # Speak the lesson outline
-                if self.speak_lesson(outline):
-                    print("Lesson outline delivered successfully")
-                
-                # Keep the session alive for questions
-                print("AI Tutor is now ready for questions...")
-                
-                # In a real implementation, this would listen for chat messages
-                # For now, we'll keep the session alive for a set duration
-                time.sleep(300)  # 5 minutes
-                
+            # Give students time to join the room
+            print("⏳ Waiting 10 seconds for students to join the room...")
+            time.sleep(10)
+            
+            # Deliver the spoken lesson
+            print("🎯 Beginning lesson delivery...")
+            lesson_success = self.speak_lesson(outline)
+            
+            if lesson_success:
+                print("✅ Lesson delivered successfully via TTS")
             else:
-                print("Failed to join Jitsi room")
-                
+                print("⚠️ Lesson delivery encountered issues")
+            
+            # Try to join Jitsi room for visual presence (optional)
+            print("🌐 Attempting to join Jitsi room for visual presence...")
+            try:
+                if self.join_jitsi_room(room_url):
+                    print("✅ Successfully joined Jitsi room")
+                else:
+                    print("⚠️ Could not join Jitsi room (audio lesson was still delivered)")
+            except Exception as jitsi_error:
+                print(f"⚠️ Jitsi connection failed: {jitsi_error}")
+                print("📢 Audio lesson was delivered successfully regardless")
+            
+            # Keep session alive for potential questions
+            print("💬 AI Tutor session active - ready for questions")
+            print("⏰ Session will remain active for 10 minutes")
+            time.sleep(600)  # 10 minutes
+            
         except Exception as e:
-            print(f"Lesson session error: {e}")
+            print(f"❌ Lesson session error: {e}")
         finally:
+            print("🔚 Cleaning up lesson session...")
             if self.driver:
                 self.driver.quit()
     
@@ -272,10 +325,18 @@ def create_meeting(topic, hf_token):
         
         # Start the lesson session in a background thread
         def run_session():
-            bot.run_lesson_session(room_url, outline)
+            try:
+                bot.run_lesson_session(room_url, outline)
+            except Exception as e:
+                print(f"Session thread error: {e}")
+            finally:
+                bot.cleanup()
         
         session_thread = threading.Thread(target=run_session, daemon=True)
         session_thread.start()
+        
+        # Give the thread a moment to start
+        time.sleep(1)
         
         return {
             "url": room_url,

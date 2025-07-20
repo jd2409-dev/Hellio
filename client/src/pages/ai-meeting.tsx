@@ -396,7 +396,7 @@ export default function AIMeeting() {
                     )}
                   </Button>
                   <p className="text-blue-200 text-sm">
-                    🤖 Creates a Jitsi room where an AI bot will deliver a spoken lesson and answer questions in real-time.
+                    🤖 Creates a Jitsi room where an AI bot will deliver a spoken lesson via text-to-speech and answer questions in real-time.
                   </p>
                 </div>
               </CardContent>
@@ -437,7 +437,7 @@ export default function AIMeeting() {
                       </Button>
                     </div>
                     <p className="text-green-200 text-xs">
-                      The AI tutor bot is joining your room and will begin the lesson shortly. You can ask follow-up questions during the session!
+                      🎙️ The AI tutor bot is starting the spoken lesson and will join your room for visual presence. The lesson is delivered via text-to-speech audio!
                     </p>
                   </div>
                 </CardContent>
