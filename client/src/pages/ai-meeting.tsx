@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -28,7 +30,8 @@ import {
   HelpCircle,
   Sparkles,
   Volume2,
-  VolumeX
+  VolumeX,
+  Settings
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -73,6 +76,9 @@ export default function AIMeeting() {
   const [lessonTopic, setLessonTopic] = useState('');
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [currentSpeechText, setCurrentSpeechText] = useState('');
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -99,7 +105,7 @@ export default function AIMeeting() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // Initialize speech synthesis
+  // Initialize speech synthesis and load voices
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       speechSynthRef.current = window.speechSynthesis;
@@ -108,6 +114,18 @@ export default function AIMeeting() {
       const loadVoices = () => {
         const voices = speechSynthRef.current?.getVoices() || [];
         console.log('Speech synthesis voices loaded:', voices.length);
+        
+        // Filter English voices and prioritize quality ones
+        const englishVoices = voices.filter(voice => voice.lang.startsWith('en'));
+        setAvailableVoices(englishVoices);
+        
+        // Set default voice if not already selected
+        if (!selectedVoice && englishVoices.length > 0) {
+          const preferredVoice = englishVoices.find(voice => 
+            voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Samantha')
+          ) || englishVoices[0];
+          setSelectedVoice(preferredVoice.name);
+        }
       };
       
       // Voices might not be loaded immediately
@@ -117,7 +135,7 @@ export default function AIMeeting() {
         loadVoices();
       }
     }
-  }, []);
+  }, [selectedVoice]);
 
   // AI Speech Functions
   const startAILesson = () => {
@@ -212,17 +230,23 @@ export default function AIMeeting() {
       utterance.pitch = 1;
       utterance.volume = 1;
       
-      // Try to get a good English voice
+      // Use selected voice
       const voices = speechSynthRef.current.getVoices();
-      console.log('Available voices:', voices.length);
+      const selectedVoiceObj = voices.find(voice => voice.name === selectedVoice);
       
-      const englishVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
-      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
-      
-      if (englishVoice) {
-        utterance.voice = englishVoice;
-        console.log('Using voice:', englishVoice.name);
+      if (selectedVoiceObj) {
+        utterance.voice = selectedVoiceObj;
+        console.log('Using selected voice:', selectedVoiceObj.name);
+      } else {
+        // Fallback to default English voice
+        const englishVoice = voices.find(voice => 
+          voice.lang.startsWith('en') && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
+        ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+        
+        if (englishVoice) {
+          utterance.voice = englishVoice;
+          console.log('Using fallback voice:', englishVoice.name);
+        }
       }
 
       utterance.onstart = () => {
@@ -544,6 +568,78 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                       }}
                     />
                   </div>
+                  
+                  {/* Voice Selection */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="voice-select" className="text-white font-medium">
+                        AI Voice Selection
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                        className="text-blue-300 hover:text-white"
+                      >
+                        <Settings className="w-4 h-4 mr-1" />
+                        {showVoiceSettings ? 'Hide' : 'Voice Settings'}
+                      </Button>
+                    </div>
+                    
+                    {showVoiceSettings && (
+                      <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-600">
+                        <div className="space-y-3">
+                          <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                              <SelectValue placeholder="Choose AI voice type" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-700 border-slate-600">
+                              {availableVoices.map((voice) => (
+                                <SelectItem key={voice.name} value={voice.name} className="text-white hover:bg-slate-600">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{voice.name}</span>
+                                    <span className="text-xs text-slate-400">
+                                      {voice.lang} • {voice.localService ? 'Local' : 'Network'}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {selectedVoice && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (window.speechSynthesis) {
+                                    const testText = "Hello! This is how I will sound during the AI lesson. I'm your AI tutor and I'm excited to help you learn!";
+                                    const utterance = new SpeechSynthesisUtterance(testText);
+                                    const voice = availableVoices.find(v => v.name === selectedVoice);
+                                    if (voice) {
+                                      utterance.voice = voice;
+                                      utterance.rate = 0.8;
+                                      utterance.pitch = 1;
+                                      utterance.volume = 1;
+                                      window.speechSynthesis.speak(utterance);
+                                    }
+                                  }
+                                }}
+                                className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white"
+                              >
+                                <Volume2 className="w-4 h-4 mr-1" />
+                                Test Voice
+                              </Button>
+                              <span className="text-xs text-slate-400">
+                                Preview how the AI will sound during lessons
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Button 
                     onClick={() => {
                       if (lessonTopic.trim()) {
@@ -780,24 +876,85 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                         </div>
                         
                         {/* AI Speech Controls */}
-                        <div className="flex justify-center gap-3 mb-4">
-                          <Button
-                            onClick={startAILesson}
-                            disabled={isAISpeaking}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <Volume2 className="w-4 h-4 mr-2" />
-                            {isAISpeaking ? 'Speaking...' : 'Start AI Lesson'}
-                          </Button>
-                          <Button
-                            onClick={stopAILesson}
-                            disabled={!isAISpeaking}
-                            variant="outline"
-                            className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
-                          >
-                            <VolumeX className="w-4 h-4 mr-2" />
-                            Stop
-                          </Button>
+                        <div className="space-y-4">
+                          <div className="flex justify-center gap-3">
+                            <Button
+                              onClick={startAILesson}
+                              disabled={isAISpeaking}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Volume2 className="w-4 h-4 mr-2" />
+                              {isAISpeaking ? 'Speaking...' : 'Start AI Lesson'}
+                            </Button>
+                            <Button
+                              onClick={stopAILesson}
+                              disabled={!isAISpeaking}
+                              variant="outline"
+                              className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                            >
+                              <VolumeX className="w-4 h-4 mr-2" />
+                              Stop
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                              className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white"
+                            >
+                              <Settings className="w-4 h-4 mr-1" />
+                              Voice
+                            </Button>
+                          </div>
+                          
+                          {/* In-Meeting Voice Settings */}
+                          {showVoiceSettings && (
+                            <div className="bg-slate-800/60 p-3 rounded-lg border border-slate-600 max-w-sm mx-auto">
+                              <div className="space-y-3">
+                                <Label className="text-white text-sm font-medium">AI Voice Selection</Label>
+                                <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                    <SelectValue placeholder="Choose voice" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-slate-700 border-slate-600">
+                                    {availableVoices.map((voice) => (
+                                      <SelectItem key={voice.name} value={voice.name} className="text-white hover:bg-slate-600">
+                                        <div className="flex flex-col">
+                                          <span className="text-sm">{voice.name}</span>
+                                          <span className="text-xs text-slate-400">
+                                            {voice.lang} • {voice.localService ? 'Local' : 'Network'}
+                                          </span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {selectedVoice && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      if (window.speechSynthesis) {
+                                        const testText = "Hello! This is how I will sound during the lesson.";
+                                        const utterance = new SpeechSynthesisUtterance(testText);
+                                        const voice = availableVoices.find(v => v.name === selectedVoice);
+                                        if (voice) {
+                                          utterance.voice = voice;
+                                          utterance.rate = 0.8;
+                                          utterance.pitch = 1;
+                                          utterance.volume = 1;
+                                          window.speechSynthesis.speak(utterance);
+                                        }
+                                      }
+                                    }}
+                                    className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white w-full"
+                                  >
+                                    <Volume2 className="w-4 h-4 mr-1" />
+                                    Test Voice
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         
                         {/* Current Speech Section */}
