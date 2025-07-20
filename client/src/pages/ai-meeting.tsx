@@ -27,7 +27,8 @@ import {
   Minimize2,
   HelpCircle,
   Sparkles,
-  Volume2
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -70,10 +71,13 @@ export default function AIMeeting() {
   const [currentSection, setCurrentSection] = useState(0);
   const [jitsiMeetingData, setJitsiMeetingData] = useState<JitsiMeetingData | null>(null);
   const [lessonTopic, setLessonTopic] = useState('');
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [currentSpeechText, setCurrentSpeechText] = useState('');
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const speechSynthRef = useRef<SpeechSynthesis | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -94,6 +98,104 @@ export default function AIMeeting() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Initialize speech synthesis
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      speechSynthRef.current = window.speechSynthesis;
+    }
+  }, []);
+
+  // AI Speech Functions
+  const startAILesson = () => {
+    if (!activeMeeting?.agenda) return;
+    
+    setIsAISpeaking(true);
+    const lessonContent = generateLessonContent(activeMeeting);
+    
+    // Split lesson into sections for progressive delivery
+    const sections = lessonContent.split('\n\n').filter(section => section.trim());
+    
+    const speakSections = async () => {
+      for (let i = 0; i < sections.length; i++) {
+        if (!isAISpeaking) break; // Check if stopped
+        
+        setCurrentSpeechText(sections[i]);
+        setCurrentSection(i);
+        setMeetingProgress(((i + 1) / sections.length) * 100);
+        
+        // Use Web Speech API to speak the content
+        await speakText(sections[i]);
+        
+        // Pause between sections
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      setIsAISpeaking(false);
+      setCurrentSpeechText('');
+    };
+    
+    speakSections();
+  };
+
+  const stopAILesson = () => {
+    setIsAISpeaking(false);
+    setCurrentSpeechText('');
+    if (speechSynthRef.current) {
+      speechSynthRef.current.cancel();
+    }
+  };
+
+  const speakText = (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!speechSynthRef.current) {
+        resolve();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      // Try to get a good English voice
+      const voices = speechSynthRef.current.getVoices();
+      const englishVoice = voices.find(voice => 
+        voice.lang.startsWith('en') && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
+      ) || voices.find(voice => voice.lang.startsWith('en'));
+      
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+
+      speechSynthRef.current.speak(utterance);
+    });
+  };
+
+  const generateLessonContent = (meeting: Meeting): string => {
+    return `Welcome to your AI learning session on ${meeting.topic}.
+
+Introduction to ${meeting.topic}:
+Today we will explore the fundamental concepts of ${meeting.topic} for ${meeting.subject} at Grade ${meeting.grade} level.
+
+${meeting.agenda.map((item, index) => `
+Section ${index + 1}: ${item}
+Let's dive deep into this important concept. ${item} is a crucial topic that builds the foundation for understanding ${meeting.topic}.
+
+Key points to remember about ${item}:
+- This concept helps explain real-world phenomena
+- It connects to other topics we've learned
+- Practice problems will help reinforce understanding
+`).join('\n')}
+
+Summary:
+We have covered the essential aspects of ${meeting.topic}. Remember to review the key concepts and practice the examples we discussed.
+
+Thank you for joining this AI-powered learning session. Feel free to ask questions in the chat for clarification on any topic.`;
+  };
 
   // Fetch meetings
   const { data: meetings, isLoading: meetingsLoading } = useQuery({
@@ -591,19 +693,54 @@ export default function AIMeeting() {
                       </div>
                     </div>
 
-                    {/* Meeting Content */}
+                    {/* AI Video/Audio Interface */}
                     <div className="bg-slate-700/50 p-6 rounded-lg min-h-[400px]">
                       <div className="text-center">
-                        <div className="w-32 h-32 bg-nexus-green/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Brain className="w-16 h-16 text-nexus-green" />
+                        <div className={`w-32 h-32 ${isAISpeaking ? 'bg-green-500/30 animate-pulse' : 'bg-nexus-green/20'} rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-300`}>
+                          <Brain className={`w-16 h-16 ${isAISpeaking ? 'text-green-400' : 'text-nexus-green'}`} />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">AI Tutor Active</h3>
-                        <p className="text-slate-400 mb-4">Learning session in progress...</p>
-                        <div className="space-y-2 text-sm text-slate-300">
+                        <h3 className="text-xl font-bold text-white mb-2">
+                          {isAISpeaking ? '🎤 AI Tutor Speaking...' : 'AI Tutor Ready'}
+                        </h3>
+                        <p className="text-slate-400 mb-4">
+                          {isAISpeaking ? 'Delivering lesson content' : 'Learning session in progress...'}
+                        </p>
+                        <div className="space-y-2 text-sm text-slate-300 mb-6">
                           <p><strong>Subject:</strong> {activeMeeting?.subject}</p>
                           <p><strong>Grade Level:</strong> {activeMeeting?.grade}</p>
                           <p><strong>Duration:</strong> {activeMeeting?.duration} minutes</p>
                         </div>
+                        
+                        {/* AI Speech Controls */}
+                        <div className="flex justify-center gap-3 mb-4">
+                          <Button
+                            onClick={startAILesson}
+                            disabled={isAISpeaking}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Volume2 className="w-4 h-4 mr-2" />
+                            {isAISpeaking ? 'Speaking...' : 'Start AI Lesson'}
+                          </Button>
+                          <Button
+                            onClick={stopAILesson}
+                            disabled={!isAISpeaking}
+                            variant="outline"
+                            className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                          >
+                            <VolumeX className="w-4 h-4 mr-2" />
+                            Stop
+                          </Button>
+                        </div>
+                        
+                        {/* Current Speech Section */}
+                        {currentSpeechText && (
+                          <div className="bg-slate-800/60 p-4 rounded-lg text-left">
+                            <h4 className="text-green-400 font-medium mb-2">AI Tutor is saying:</h4>
+                            <p className="text-slate-200 text-sm leading-relaxed">
+                              {currentSpeechText}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
