@@ -126,6 +126,29 @@ export const chatSessions = pgTable("chat_sessions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const aiMeetings = pgTable("ai_meetings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  topic: varchar("topic").notNull(),
+  subject: varchar("subject").notNull(),
+  grade: varchar("grade").notNull(),
+  description: text("description"),
+  agenda: jsonb("agenda").$type<string[]>().default([]),
+  duration: integer("duration").notNull().default(30), // in minutes
+  status: varchar("status").notNull().default("scheduled"), // scheduled, active, completed
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const meetingMessages = pgTable("meeting_messages", {
+  id: serial("id").primaryKey(),
+  meetingId: integer("meeting_id").notNull().references(() => aiMeetings.id),
+  role: varchar("role").notNull(), // 'user' or 'assistant'
+  content: text("content").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
 // Analytics and Performance Tracking Tables
 export const studySessions = pgTable("study_sessions", {
   id: serial("id").primaryKey(),
@@ -170,6 +193,16 @@ export const usersRelations = relations(users, ({ many }) => ({
   chatSessions: many(chatSessions),
   studySessions: many(studySessions),
   performanceMetrics: many(performanceMetrics),
+  aiMeetings: many(aiMeetings),
+}));
+
+export const aiMeetingsRelations = relations(aiMeetings, ({ one, many }) => ({
+  user: one(users, { fields: [aiMeetings.userId], references: [users.id] }),
+  messages: many(meetingMessages),
+}));
+
+export const meetingMessagesRelations = relations(meetingMessages, ({ one }) => ({
+  meeting: one(aiMeetings, { fields: [meetingMessages.meetingId], references: [aiMeetings.id] }),
 }));
 
 export const subjectsRelations = relations(subjects, ({ many }) => ({
@@ -259,6 +292,18 @@ export const insertPerformanceMetricSchema = createInsertSchema(performanceMetri
   lastUpdated: true,
 });
 
+export const insertAIMeetingSchema = createInsertSchema(aiMeetings).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+});
+
+export const insertMeetingMessageSchema = createInsertSchema(meetingMessages).omit({
+  id: true,
+  timestamp: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -281,3 +326,7 @@ export type PerformanceMetric = typeof performanceMetrics.$inferSelect;
 export type InsertPerformanceMetric = z.infer<typeof insertPerformanceMetricSchema>;
 export type UserAchievement = typeof userAchievements.$inferSelect;
 export type ChatSession = typeof chatSessions.$inferSelect;
+export type AIMeeting = typeof aiMeetings.$inferSelect;
+export type InsertAIMeeting = z.infer<typeof insertAIMeetingSchema>;
+export type MeetingMessage = typeof meetingMessages.$inferSelect;
+export type InsertMeetingMessage = z.infer<typeof insertMeetingMessageSchema>;

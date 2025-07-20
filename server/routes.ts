@@ -6,7 +6,12 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { GoogleGenAI } from "@google/genai";
 import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
 import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
-import { generateImprovementSuggestions } from "./gemini";
+import { 
+  generateImprovementSuggestions,
+  parseMeetingRequest, 
+  generateMeetingResponse, 
+  generateInitialMeetingMessage 
+} from "./gemini";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -675,6 +680,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Analytics error:', error);
       res.status(500).json({ message: 'Failed to fetch analytics data' });
+    }
+  });
+
+  // AI Meeting routes
+  app.get('/api/meetings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const meetings = await storage.getUserMeetings(userId);
+      res.json(meetings);
+    } catch (error) {
+      console.error('Meetings fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch meetings' });
+    }
+  });
+
+  app.post('/api/meetings/create', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { request } = req.body;
+
+      if (!request) {
+        return res.status(400).json({ message: 'Meeting request is required' });
+      }
+
+      // Parse the meeting request using AI
+      const meetingData = await parseMeetingRequest(request);
+      
+      // Create the meeting in database
+      const meeting = await storage.createMeeting({
+        userId,
+        ...meetingData,
+      });
+
+      res.json(meeting);
+    } catch (error) {
+      console.error('Meeting creation error:', error);
+      res.status(500).json({ message: 'Failed to create meeting' });
+    }
+  });
+
+  app.post('/api/meetings/:meetingId/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const meetingId = parseInt(req.params.meetingId);
+
+      // Get the meeting
+      const meeting = await storage.getMeeting(meetingId);
+      if (!meeting || meeting.userId !== userId) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+
+      // Update meeting status to active
+      const updatedMeeting = await storage.updateMeetingStatus(meetingId, 'active');
+
+      // Generate initial welcome message
+      const initialMessage = await generateInitialMeetingMessage({
+        topic: meeting.topic,
+        subject: meeting.subject,
+        grade: meeting.grade,
+        agenda: meeting.agenda,
+      });
+
+      // Save the initial message
+      await storage.createMeetingMessage({
+        meetingId,
+        role: 'assistant',
+        content: initialMessage,
+      });
+
+      // Get all messages for the meeting
+      const messages = await storage.getMeetingMessages(meetingId);
+
+      res.json({
+        meeting: updatedMeeting,
+        initialMessages: messages,
+      });
+    } catch (error) {
+      console.error('Meeting start error:', error);
+      res.status(500).json({ message: 'Failed to start meeting' });
+    }
+  });
+
+  app.post('/api/meetings/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message, meetingId } = req.body;
+
+      if (!message || !meetingId) {
+        return res.status(400).json({ message: 'Message and meetingId are required' });
+      }
+
+      // Verify meeting ownership
+      const meeting = await storage.getMeeting(meetingId);
+      if (!meeting || meeting.userId !== userId) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+
+      // Get previous messages for context
+      const previousMessages = await storage.getMeetingMessages(meetingId);
+
+      // Generate AI response
+      const aiResponse = await generateMeetingResponse(message, {
+        topic: meeting.topic,
+        subject: meeting.subject,
+        grade: meeting.grade,
+        agenda: meeting.agenda,
+        previousMessages: previousMessages.slice(-6), // Last 6 messages for context
+      });
+
+      // Save AI response
+      const aiMessage = await storage.createMeetingMessage({
+        meetingId,
+        role: 'assistant',
+        content: aiResponse,
+      });
+
+      res.json({
+        messages: [aiMessage],
+      });
+    } catch (error) {
+      console.error('Meeting chat error:', error);
+      res.status(500).json({ message: 'Failed to send message' });
     }
   });
 

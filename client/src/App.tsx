@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import AITutor from "@/pages/ai-tutor";
+import AIMeeting from "@/pages/ai-meeting";
 import TextbookUpload from "@/pages/textbook-upload";
 import QuizSelection from "@/pages/quiz-selection";
 import SubjectDetail from "@/pages/subject-detail";
@@ -36,6 +37,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/ai-tutor" component={AITutor} />
+          <Route path="/ai-meeting" component={AIMeeting} />
           <Route path="/textbook-upload" component={TextbookUpload} />
           <Route path="/quiz-selection" component={QuizSelection} />
           <Route path="/subject/:id" component={SubjectDetail} />

@@ -20,7 +20,8 @@ import {
   ChevronRight,
   BarChart3,
   Users,
-  LogOut
+  LogOut,
+  Video
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -197,6 +198,23 @@ export default function Dashboard() {
                 <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 w-full">
                   <Zap className="mr-2 h-4 w-4" />
                   Start Chat
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* AI Meetings */}
+          <Link href="/ai-meeting">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+              <CardContent className="p-8 text-center">
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Video className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4">AI Meetings</h3>
+                <p className="text-slate-400 mb-6">Organize AI-powered learning sessions on any topic</p>
+                <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 w-full">
+                  <Video className="mr-2 h-4 w-4" />
+                  Start Meeting
                 </Button>
               </CardContent>
             </Card>

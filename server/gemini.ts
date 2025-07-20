@@ -211,3 +211,176 @@ Format as a JSON array of strings, each suggestion being 1-2 sentences long.`;
         ];
     }
 }
+
+export async function parseMeetingRequest(request: string): Promise<{
+    topic: string;
+    subject: string;
+    grade: string;
+    description: string;
+    agenda: string[];
+    duration: number;
+}> {
+    try {
+        const prompt = `Parse this learning meeting request and extract structured information:
+
+Request: "${request}"
+
+Provide the response as JSON with these fields:
+- topic: The main topic/subject matter to be taught
+- subject: The academic subject (e.g., Physics, Biology, Mathematics, etc.)
+- grade: The grade level (e.g., "9", "10", "12", etc.)
+- description: A brief description of what will be covered
+- agenda: Array of 4-6 learning objectives/topics to cover in order
+- duration: Estimated duration in minutes (30-60 based on complexity)
+
+Make sure the agenda is pedagogically structured from basic concepts to more advanced ones.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "object",
+                    properties: {
+                        topic: { type: "string" },
+                        subject: { type: "string" },
+                        grade: { type: "string" },
+                        description: { type: "string" },
+                        agenda: {
+                            type: "array",
+                            items: { type: "string" }
+                        },
+                        duration: { type: "number" }
+                    },
+                    required: ["topic", "subject", "grade", "description", "agenda", "duration"]
+                }
+            },
+            contents: prompt,
+        });
+
+        const parsed = JSON.parse(response.text || '{}');
+        return {
+            topic: parsed.topic || "Learning Session",
+            subject: parsed.subject || "General",
+            grade: parsed.grade || "9",
+            description: parsed.description || "Educational learning session",
+            agenda: Array.isArray(parsed.agenda) ? parsed.agenda : ["Introduction", "Main concepts", "Examples", "Summary"],
+            duration: typeof parsed.duration === 'number' ? parsed.duration : 30
+        };
+    } catch (error) {
+        console.error('Error parsing meeting request:', error);
+        // Fallback parsing
+        const lowerRequest = request.toLowerCase();
+        let subject = "General";
+        let grade = "9";
+        let topic = "Learning Session";
+
+        // Extract grade
+        const gradeMatch = lowerRequest.match(/grade\s*(\d+)/);
+        if (gradeMatch) grade = gradeMatch[1];
+
+        // Extract subject
+        const subjects = ["physics", "chemistry", "biology", "mathematics", "math", "english", "history", "geography"];
+        for (const subj of subjects) {
+            if (lowerRequest.includes(subj)) {
+                subject = subj.charAt(0).toUpperCase() + subj.slice(1);
+                break;
+            }
+        }
+
+        // Extract topic
+        const topicMatch = lowerRequest.match(/'([^']+)'/);
+        if (topicMatch) topic = topicMatch[1];
+
+        return {
+            topic,
+            subject,
+            grade,
+            description: `Learning session on ${topic} for grade ${grade}`,
+            agenda: [
+                "Introduction to the topic",
+                "Key concepts and definitions", 
+                "Real-world examples",
+                "Practice problems",
+                "Summary and review"
+            ],
+            duration: 45
+        };
+    }
+}
+
+export async function generateMeetingResponse(
+    message: string, 
+    meetingContext: {
+        topic: string;
+        subject: string;
+        grade: string;
+        agenda: string[];
+        previousMessages?: any[];
+    }
+): Promise<string> {
+    try {
+        const context = meetingContext.previousMessages 
+            ? meetingContext.previousMessages.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
+            : '';
+
+        const prompt = `You are an AI tutor conducting a live learning session. Respond helpfully to the student's question.
+
+Meeting Context:
+- Topic: ${meetingContext.topic}
+- Subject: ${meetingContext.subject}
+- Grade Level: ${meetingContext.grade}
+- Learning Agenda: ${meetingContext.agenda.join(', ')}
+
+Recent Conversation:
+${context}
+
+Student's Question: "${message}"
+
+Provide a clear, educational response appropriate for grade ${meetingContext.grade}. Use examples and analogies when helpful. Keep responses concise but informative (2-4 sentences).`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+
+        return response.text || "I'm here to help you learn! Could you rephrase your question?";
+    } catch (error) {
+        console.error('Error generating meeting response:', error);
+        return "I'm having trouble processing your question right now. Could you try asking in a different way?";
+    }
+}
+
+export async function generateInitialMeetingMessage(meetingData: {
+    topic: string;
+    subject: string;
+    grade: string;
+    agenda: string[];
+}): Promise<string> {
+    try {
+        const prompt = `Generate a welcoming introduction message for an AI tutoring session.
+
+Session Details:
+- Topic: ${meetingData.topic}
+- Subject: ${meetingData.subject}
+- Grade Level: ${meetingData.grade}
+- Agenda: ${meetingData.agenda.join(', ')}
+
+Create a friendly, encouraging welcome message that:
+1. Welcomes the student to the learning session
+2. Briefly introduces the topic
+3. Mentions what we'll cover
+4. Encourages questions
+Keep it conversational and appropriate for grade ${meetingData.grade} (2-3 sentences).`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+
+        return response.text || `Welcome to your learning session on ${meetingData.topic}! I'm your AI tutor and I'm here to help you understand this topic step by step. Feel free to ask me any questions during our session!`;
+    } catch (error) {
+        console.error('Error generating initial meeting message:', error);
+        return `Welcome to your learning session on ${meetingData.topic}! I'm excited to explore this topic with you. Ask me anything you'd like to know!`;
+    }
+}

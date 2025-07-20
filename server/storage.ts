@@ -8,6 +8,8 @@ import {
   achievements,
   userAchievements,
   chatSessions,
+  aiMeetings,
+  meetingMessages,
   type User,
   type UpsertUser,
   type Subject,
@@ -23,6 +25,10 @@ import {
   type Achievement,
   type UserAchievement,
   type ChatSession,
+  type AIMeeting,
+  type InsertAIMeeting,
+  type MeetingMessage,
+  type InsertMeetingMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -63,6 +69,16 @@ export interface IStorage {
   // Chat operations
   getChatSession(userId: string): Promise<ChatSession | undefined>;
   updateChatSession(userId: string, messages: any[]): Promise<ChatSession>;
+  
+  // AI Meeting operations
+  createMeeting(meeting: InsertAIMeeting): Promise<AIMeeting>;
+  getUserMeetings(userId: string): Promise<AIMeeting[]>;
+  getMeeting(id: number): Promise<AIMeeting | undefined>;
+  updateMeetingStatus(id: number, status: 'scheduled' | 'active' | 'completed', timestamp?: Date): Promise<AIMeeting>;
+  
+  // Meeting Message operations
+  createMeetingMessage(message: InsertMeetingMessage): Promise<MeetingMessage>;
+  getMeetingMessages(meetingId: number): Promise<MeetingMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -208,6 +224,48 @@ export class DatabaseStorage implements IStorage {
       }).returning();
       return newSession;
     }
+  }
+  
+  // AI Meeting operations
+  async createMeeting(meetingData: InsertAIMeeting): Promise<AIMeeting> {
+    const [meeting] = await db.insert(aiMeetings).values(meetingData).returning();
+    return meeting;
+  }
+  
+  async getUserMeetings(userId: string): Promise<AIMeeting[]> {
+    return await db.select().from(aiMeetings).where(eq(aiMeetings.userId, userId)).orderBy(desc(aiMeetings.createdAt));
+  }
+  
+  async getMeeting(id: number): Promise<AIMeeting | undefined> {
+    const [meeting] = await db.select().from(aiMeetings).where(eq(aiMeetings.id, id));
+    return meeting;
+  }
+  
+  async updateMeetingStatus(id: number, status: 'scheduled' | 'active' | 'completed', timestamp?: Date): Promise<AIMeeting> {
+    const updateData: any = { status };
+    
+    if (status === 'active') {
+      updateData.startedAt = timestamp || new Date();
+    } else if (status === 'completed') {
+      updateData.completedAt = timestamp || new Date();
+    }
+    
+    const [updated] = await db
+      .update(aiMeetings)
+      .set(updateData)
+      .where(eq(aiMeetings.id, id))
+      .returning();
+    return updated;
+  }
+  
+  // Meeting Message operations
+  async createMeetingMessage(messageData: InsertMeetingMessage): Promise<MeetingMessage> {
+    const [message] = await db.insert(meetingMessages).values(messageData).returning();
+    return message;
+  }
+  
+  async getMeetingMessages(meetingId: number): Promise<MeetingMessage[]> {
+    return await db.select().from(meetingMessages).where(eq(meetingMessages.meetingId, meetingId)).orderBy(meetingMessages.timestamp);
   }
 }
 

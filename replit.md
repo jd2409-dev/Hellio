@@ -52,6 +52,8 @@ Key entities include:
 - **Quizzes**: Generated quizzes with questions and scoring
 - **Achievements**: Gamification rewards and progress tracking
 - **Chat Sessions**: AI tutor conversation history
+- **AI Meetings**: Structured learning sessions with topics, subjects, grades, and agendas
+- **Meeting Messages**: Real-time chat messages during AI-powered learning sessions
 
 ### Gamification System (Updated January 2025)
 - **XP System**: Points earned through study activities
@@ -60,6 +62,14 @@ Key entities include:
 - **Achievement Badges**: 10 real achievements with database integration
 - **Study Streaks**: Daily engagement tracking
 - **Real Data Integration**: Dashboard now shows actual user achievements and stats
+
+### AI Meeting System (New - January 2025)
+- **Meeting Organization**: Natural language meeting requests (e.g., "Organize a meeting for topic 'motion' for grade 9")
+- **AI-Powered Parsing**: Automatic extraction of topic, subject, grade level, and structured agenda
+- **Interactive Sessions**: Real-time AI tutoring during meetings with contextual responses
+- **Meeting Management**: Database-backed meeting storage with status tracking
+- **Live Chat**: In-meeting chat system with AI assistant for instant help and explanations
+- **Educational Structure**: Pedagogically organized agendas from basic to advanced concepts
 
 ## Data Flow
 
