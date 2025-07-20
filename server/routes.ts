@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
+import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -823,8 +824,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Creating AI lesson meeting for topic: ${topic}`);
 
-      // Use Python subprocess to create the meeting with audio demo
-      const pythonProcess = spawn('python3', ['server/simple-lesson-audio.py', topic, hfToken]);
+      // Use Python subprocess to create the meeting with audio interface
+      const pythonProcess = spawn('python3', ['server/audio-web-interface.py', topic, hfToken]);
 
       let output = '';
       let errorOutput = '';
@@ -863,6 +864,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to create meeting' });
     }
   });
+
+  // Serve audio files
+  app.use('/audio', express.static('public/audio'));
 
   const httpServer = createServer(app);
   return httpServer;

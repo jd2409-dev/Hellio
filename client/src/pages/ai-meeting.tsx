@@ -26,7 +26,8 @@ import {
   Maximize2,
   Minimize2,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  Volume2
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -428,6 +429,23 @@ export default function AIMeeting() {
                       <h4 className="font-semibold text-white mb-2">Lesson Outline:</h4>
                       <p className="text-slate-300 text-sm whitespace-pre-wrap">{jitsiMeetingData.outline}</p>
                     </div>
+                    
+                    {/* Audio Player Section */}
+                    {jitsiMeetingData.audio_url && (
+                      <div className="bg-blue-950/30 p-4 rounded-lg border border-blue-500/20">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Volume2 className="w-5 h-5 text-blue-300" />
+                          <h4 className="text-blue-100 font-medium">AI Tutor Audio</h4>
+                        </div>
+                        <audio controls className="w-full">
+                          <source src={jitsiMeetingData.audio_url} type="audio/wav" />
+                          Your browser does not support the audio element.
+                        </audio>
+                        <p className="text-blue-200 text-xs mt-2">
+                          🎙️ Listen to your AI tutor explain the lesson content
+                        </p>
+                      </div>
+                    )}
                     <div className="flex gap-3">
                       <Button 
                         onClick={() => window.open(jitsiMeetingData.url, '_blank')}
@@ -456,8 +474,8 @@ export default function AIMeeting() {
                         <li>🎯 Click "Join Video Lesson" to see the lesson outline</li>
                       </ul>
                       <div className="mt-2 p-2 bg-green-800/20 rounded border border-green-600/30">
-                        <p className="text-green-100 text-xs font-semibold">Ready for Learning:</p>
-                        <p className="text-green-200 text-xs">Your AI-generated lesson is ready! Join the Jitsi room to access the complete educational content and start learning.</p>
+                        <p className="text-green-100 text-xs font-semibold">Audio Lesson Ready:</p>
+                        <p className="text-green-200 text-xs">AI tutor has created an audio file you can play to hear the spoken lesson! Join the room for the complete experience.</p>
                       </div>
                     </div>
                   </div>
