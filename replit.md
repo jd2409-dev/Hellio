@@ -72,13 +72,13 @@ Key entities include:
 - **Educational Structure**: Pedagogically organized agendas from basic to advanced concepts
 
 ### AI Lesson Panel (Updated January 2025)
-- **Video Meeting Integration**: Creates Jitsi video rooms with AI bot participation
-- **Spoken Lessons**: AI bot delivers lessons using text-to-speech on server side
-- **Structured Content**: Students receive comprehensive lesson outlines in video rooms
-- **Real-time Q&A**: Interactive sessions with AI-generated educational content
-- **Hugging Face Integration**: Uses HF Inference API for lesson generation and content creation
-- **Zero-cost Implementation**: Free lesson delivery using open-source tools and APIs
-- **Dual Delivery System**: Server-side audio generation + client-side structured content viewing
+- **Instant Lesson Generation**: Creates comprehensive educational content using Hugging Face API
+- **Video Meeting Integration**: Generates unique Jitsi rooms for each lesson session
+- **Structured Educational Content**: AI generates detailed lesson outlines with learning objectives
+- **Text-to-Speech Demonstration**: Server-side TTS capability for lesson delivery
+- **Interactive Learning Format**: Lessons include welcome messages, objectives, content, and summaries
+- **Zero-cost Implementation**: Free lesson generation using HF Inference API and open-source tools
+- **Educational AI Assistant**: Demonstrates AI tutoring capabilities with structured pedagogy
 
 ## Data Flow
 

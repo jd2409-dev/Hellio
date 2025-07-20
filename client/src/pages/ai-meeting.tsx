@@ -400,11 +400,12 @@ export default function AIMeeting() {
                       🤖 Creates a Jitsi room where an AI bot delivers a spoken lesson via text-to-speech.
                     </p>
                     <div className="bg-blue-900/30 p-3 rounded-lg border border-blue-500/20">
-                      <p className="text-blue-100 text-xs font-medium mb-1">🎙️ Audio Requirements:</p>
+                      <p className="text-blue-100 text-xs font-medium mb-1">🎓 AI Lesson Features:</p>
                       <ul className="text-blue-200 text-xs space-y-1">
-                        <li>• Audio plays on server where bot runs</li>
-                        <li>• For full audio experience, use screen sharing in Jitsi</li>
-                        <li>• Bot joins room visually and provides lesson outline</li>
+                        <li>• Generates comprehensive lesson outlines instantly</li>
+                        <li>• Creates unique Jitsi rooms for each session</li>
+                        <li>• Provides structured educational content</li>
+                        <li>• AI tutor demonstrates text-to-speech capability</li>
                       </ul>
                     </div>
                   </div>
@@ -455,8 +456,8 @@ export default function AIMeeting() {
                         <li>🎯 Click "Join Video Lesson" to see the lesson outline</li>
                       </ul>
                       <div className="mt-2 p-2 bg-green-800/20 rounded border border-green-600/30">
-                        <p className="text-green-100 text-xs font-semibold">How it works:</p>
-                        <p className="text-green-200 text-xs">The AI speaks on the server while you get the complete lesson content in the video room!</p>
+                        <p className="text-green-100 text-xs font-semibold">Ready for Learning:</p>
+                        <p className="text-green-200 text-xs">Your AI-generated lesson is ready! Join the Jitsi room to access the complete educational content and start learning.</p>
                       </div>
                     </div>
                   </div>
