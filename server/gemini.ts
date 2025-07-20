@@ -146,3 +146,68 @@ export async function generateImage(
         throw new Error(`Failed to generate image: ${error}`);
     }
 }
+
+export async function generateImprovementSuggestions(
+    subjectPerformance: any,
+    difficultyPerformance: any,
+    commonMistakes: any[]
+): Promise<string[]> {
+    try {
+        const performanceData = {
+            subjects: Object.entries(subjectPerformance).map(([subject, data]: [string, any]) => ({
+                subject,
+                averageScore: data.attempts > 0 ? Math.round(data.total / data.attempts) : 0,
+                attempts: data.attempts
+            })),
+            difficulties: Object.entries(difficultyPerformance).map(([difficulty, data]: [string, any]) => ({
+                difficulty,
+                averageScore: data.attempts > 0 ? Math.round(data.total / data.attempts) : 0,
+                attempts: data.attempts
+            })),
+            recentMistakes: commonMistakes.map(mistake => ({
+                subject: mistake.subject,
+                topic: mistake.topic,
+                question: mistake.question
+            }))
+        };
+
+        const prompt = `Analyze this student's quiz performance data and provide 5 specific, actionable improvement suggestions.
+
+Performance Data:
+${JSON.stringify(performanceData, null, 2)}
+
+Provide suggestions that:
+1. Address weak subject areas with specific study strategies
+2. Recommend difficulty progression paths
+3. Suggest focused practice for common mistake patterns
+4. Include concrete action items (time, resources, methods)
+5. Are encouraging and motivational
+
+Format as a JSON array of strings, each suggestion being 1-2 sentences long.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "array",
+                    items: { type: "string" }
+                }
+            },
+            contents: prompt,
+        });
+
+        const suggestions = JSON.parse(response.text || '[]');
+        return Array.isArray(suggestions) ? suggestions : [];
+    } catch (error) {
+        console.error('Error generating improvement suggestions:', error);
+        // Fallback suggestions
+        return [
+            "Focus on your weakest subject areas by dedicating 15-20 minutes daily to targeted practice.",
+            "Review incorrect answers immediately after each quiz to understand the reasoning behind correct solutions.",
+            "Start with easier difficulty levels to build confidence before progressing to harder questions.",
+            "Create summary notes for topics where you frequently make mistakes.",
+            "Practice time management by setting timers during study sessions to improve quiz completion speed."
+        ];
+    }
+}

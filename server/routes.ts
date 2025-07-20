@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { GoogleGenAI } from "@google/genai";
 import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
 import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
+import { generateImprovementSuggestions } from "./gemini";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -517,6 +518,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Stats error:", error);
       res.status(500).json({ message: "Failed to fetch user stats" });
+    }
+  });
+
+  // Quiz reflection endpoint - past results and improvement suggestions
+  app.get('/api/user/reflection', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get recent quiz attempts with detailed results
+      const quizAttempts = await storage.getUserQuizAttempts(userId);
+      const recentAttempts = quizAttempts.slice(-10); // Last 10 attempts
+      
+      // Calculate performance patterns
+      const subjectPerformance = {};
+      const difficultyPerformance = {};
+      let totalCorrect = 0;
+      let totalQuestions = 0;
+      let commonMistakes = [];
+      
+      for (const attempt of recentAttempts) {
+        const quiz = await storage.getQuiz(attempt.quizId);
+        if (quiz) {
+          const score = parseFloat(attempt.score);
+          const subject = quiz.title.split(' ')[0]; // Extract subject from title
+          const difficulty = quiz.difficulty || 'medium';
+          
+          // Track subject performance
+          if (!subjectPerformance[subject]) {
+            subjectPerformance[subject] = { total: 0, correct: 0, attempts: 0 };
+          }
+          subjectPerformance[subject].attempts++;
+          subjectPerformance[subject].total += score;
+          
+          // Track difficulty performance
+          if (!difficultyPerformance[difficulty]) {
+            difficultyPerformance[difficulty] = { total: 0, attempts: 0 };
+          }
+          difficultyPerformance[difficulty].attempts++;
+          difficultyPerformance[difficulty].total += score;
+          
+          // Analyze answers for common mistakes
+          if (attempt.answers) {
+            const answers = JSON.parse(attempt.answers);
+            const questions = JSON.parse(quiz.questions);
+            
+            questions.forEach((question, index) => {
+              const userAnswer = answers[index];
+              const correctAnswer = question.correctAnswer || question.modelAnswer;
+              
+              if (userAnswer && correctAnswer && 
+                  String(userAnswer).toLowerCase().trim() !== String(correctAnswer).toLowerCase().trim()) {
+                commonMistakes.push({
+                  subject,
+                  question: question.question.substring(0, 100),
+                  userAnswer,
+                  correctAnswer,
+                  topic: question.topic || subject
+                });
+              }
+            });
+          }
+        }
+      }
+      
+      // Generate improvement suggestions using AI
+      const improvementSuggestions = await generateImprovementSuggestions(
+        subjectPerformance,
+        difficultyPerformance,
+        commonMistakes.slice(-5) // Last 5 mistakes
+      );
+      
+      res.json({
+        recentAttempts: recentAttempts.map(attempt => ({
+          ...attempt,
+          createdAt: attempt.createdAt || new Date().toISOString()
+        })),
+        subjectPerformance,
+        difficultyPerformance,
+        commonMistakes: commonMistakes.slice(-10), // Last 10 mistakes
+        improvementSuggestions,
+        totalAttempts: quizAttempts.length,
+        averageScore: quizAttempts.length > 0 
+          ? quizAttempts.reduce((sum, attempt) => sum + parseFloat(attempt.score), 0) / quizAttempts.length
+          : 0
+      });
+    } catch (error) {
+      console.error("Reflection data error:", error);
+      res.status(500).json({ message: "Failed to fetch reflection data" });
     }
   });
 
