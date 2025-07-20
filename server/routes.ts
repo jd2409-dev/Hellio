@@ -568,6 +568,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subject progress endpoint - real data based on user activity
+  app.get('/api/subjects/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const subjects = await storage.getSubjects();
+      const quizAttempts = await storage.getUserQuizAttempts(userId);
+      const { analyticsService } = await import("./services/analyticsService");
+      
+      // Calculate progress for each subject
+      const subjectProgress = await Promise.all(subjects.map(async (subject) => {
+        // Get quizzes for this subject - handle async check properly
+        const subjectQuizzes = [];
+        for (const attempt of quizAttempts) {
+          if (attempt.subject === subject.name) {
+            subjectQuizzes.push(attempt);
+          } else if (attempt.quizId) {
+            const quiz = await storage.getQuiz(attempt.quizId);
+            if (quiz?.subjectId === subject.id) {
+              subjectQuizzes.push(attempt);
+            }
+          }
+        }
+        
+        // Get study time for this subject
+        const studyTime = await analyticsService.getTotalStudyTimeForSubject(userId, subject.id);
+        
+        // Calculate average score
+        const averageScore = subjectQuizzes.length > 0 
+          ? subjectQuizzes.reduce((sum, attempt) => sum + parseFloat(attempt.score), 0) / subjectQuizzes.length
+          : 0;
+        
+        // Calculate progress based on activity (quizzes taken + study time)
+        // Progress = (average_score * 0.7) + (activity_factor * 0.3)
+        const activityFactor = Math.min(100, (subjectQuizzes.length * 10) + (studyTime / 3600 * 20)); // Max 100
+        const progress = Math.round((averageScore * 0.7) + (activityFactor * 0.3));
+        
+        return {
+          ...subject,
+          progress: Math.max(0, Math.min(100, progress)), // Ensure between 0-100
+          averageScore: Math.round(averageScore),
+          totalQuizzes: subjectQuizzes.length,
+          studyTime: Math.round(studyTime / 60), // Convert to minutes
+        };
+      }));
+      
+      res.json(subjectProgress);
+    } catch (error) {
+      console.error("Subject progress error:", error);
+      res.status(500).json({ message: "Failed to fetch subject progress" });
+    }
+  });
+
   // Quiz reflection endpoint - past results and improvement suggestions
   app.get('/api/user/reflection', isAuthenticated, async (req: any, res) => {
     try {

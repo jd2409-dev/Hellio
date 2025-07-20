@@ -33,6 +33,10 @@ export default function Dashboard() {
     queryKey: ["/api/subjects"],
   });
 
+  const { data: subjectProgress } = useQuery({
+    queryKey: ["/api/subjects/progress"],
+  });
+
   const { data: userStats } = useQuery({
     queryKey: ["/api/user/stats"],
   });
@@ -276,8 +280,8 @@ export default function Dashboard() {
         <div className="mb-12">
           <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Your Subjects</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(subjects && subjects.length > 0 ? subjects : defaultSubjects).map((subject: any) => {
-              const progress = subject.progress || Math.floor(Math.random() * 40) + 60;
+            {(subjectProgress && subjectProgress.length > 0 ? subjectProgress : defaultSubjects).map((subject: any) => {
+              const progress = subject.progress || 0;
               return (
                 <Link key={subject.id} href={`/subject/${subject.id}`}>
                   <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
@@ -301,7 +305,7 @@ export default function Dashboard() {
                         <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-white transition-colors" />
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-slate-400">Progress</span>
                           <span className="text-sm font-semibold text-white">{progress}%</span>
@@ -310,6 +314,15 @@ export default function Dashboard() {
                           value={progress} 
                           className="h-2 bg-slate-700"
                         />
+                        
+                        {/* Real Activity Metrics */}
+                        <div className="flex justify-between text-xs text-slate-400">
+                          <span>{subject.totalQuizzes || 0} quizzes</span>
+                          <span>{subject.studyTime || 0}m study time</span>
+                          <span className={subject.averageScore >= 70 ? 'text-emerald-400' : subject.averageScore >= 50 ? 'text-amber-400' : 'text-red-400'}>
+                            {subject.averageScore || 0}% avg
+                          </span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

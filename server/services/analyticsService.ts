@@ -85,6 +85,21 @@ export class AnalyticsService {
     return result?.totalTime || 0;
   }
 
+  // Get total study time for a specific subject (in seconds)
+  async getTotalStudyTimeForSubject(userId: string, subjectId: number): Promise<number> {
+    const [result] = await db
+      .select({
+        totalTime: sql<number>`COALESCE(SUM(${studySessions.duration}), 0)`.as('totalTime')
+      })
+      .from(studySessions)
+      .where(and(
+        eq(studySessions.userId, userId),
+        eq(studySessions.subjectId, subjectId)
+      ));
+    
+    return result?.totalTime || 0;
+  }
+
   // Update learning streak
   async updateLearningStreak(userId: string): Promise<void> {
     const today = new Date();
