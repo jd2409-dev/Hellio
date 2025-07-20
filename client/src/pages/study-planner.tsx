@@ -111,12 +111,11 @@ export default function StudyPlanner() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-slate-700/50">
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
             </Link>
-            <div className="border-l border-slate-600 h-8"></div>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
                 Study Planner
