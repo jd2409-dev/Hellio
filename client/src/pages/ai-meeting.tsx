@@ -63,6 +63,7 @@ interface JitsiMeetingData {
   url: string;
   outline: string;
   status: string;
+  bot_features?: string[];
 }
 
 export default function AIMeeting() {
@@ -113,35 +114,93 @@ export default function AIMeeting() {
 
   // Initialize speech synthesis and load voices
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      speechSynthRef.current = window.speechSynthesis;
-      
-      // Load voices
-      const loadVoices = () => {
-        const voices = speechSynthRef.current?.getVoices() || [];
-        console.log('Speech synthesis voices loaded:', voices.length);
-        
-        // Filter English voices and prioritize quality ones
-        const englishVoices = voices.filter(voice => voice.lang.startsWith('en'));
-        setAvailableVoices(englishVoices);
-        
-        // Set default voice if not already selected
-        if (!selectedVoice && englishVoices.length > 0) {
-          const preferredVoice = englishVoices.find(voice => 
-            voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Samantha')
-          ) || englishVoices[0];
-          setSelectedVoice(preferredVoice.name);
-        }
-      };
-      
-      // Voices might not be loaded immediately
-      if (speechSynthRef.current.getVoices().length === 0) {
-        speechSynthRef.current.addEventListener('voiceschanged', loadVoices);
-      } else {
-        loadVoices();
+    const initializeSpeech = () => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) {
+        console.warn('Speech synthesis not supported in this environment');
+        return;
       }
+      
+      try {
+        speechSynthRef.current = window.speechSynthesis;
+        
+        // Load voices function
+        const loadVoices = () => {
+          try {
+            if (!speechSynthRef.current) {
+              console.warn('Speech synthesis reference lost');
+              return;
+            }
+            
+            const voices = speechSynthRef.current.getVoices() || [];
+            console.log('Speech synthesis voices loaded:', voices.length);
+            
+            if (voices.length === 0) {
+              console.warn('No voices available yet');
+              return;
+            }
+            
+            // Filter English voices and prioritize quality ones
+            const englishVoices = voices.filter(voice => 
+              voice && voice.lang && voice.lang.startsWith('en')
+            );
+            
+            setAvailableVoices(englishVoices);
+            
+            // Set default voice if not already selected and voices are available
+            if (!selectedVoice && englishVoices.length > 0) {
+              const preferredVoice = englishVoices.find(voice => 
+                voice.name && (
+                  voice.name.includes('Google') || 
+                  voice.name.includes('Microsoft') || 
+                  voice.name.includes('Samantha')
+                )
+              ) || englishVoices[0];
+              
+              if (preferredVoice && preferredVoice.name) {
+                setSelectedVoice(preferredVoice.name);
+              }
+            }
+          } catch (error) {
+            console.warn('Error loading voices:', error);
+          }
+        };
+        
+        // Check if voices are already available
+        try {
+          const initialVoices = speechSynthRef.current.getVoices();
+          if (initialVoices && initialVoices.length > 0) {
+            loadVoices();
+          } else {
+            // Listen for voices to be loaded
+            if (speechSynthRef.current.addEventListener) {
+              speechSynthRef.current.addEventListener('voiceschanged', loadVoices);
+            }
+            
+            // Also try loading after a short delay as a fallback
+            setTimeout(loadVoices, 100);
+            setTimeout(loadVoices, 1000); // Additional fallback
+          }
+        } catch (voicesError) {
+          console.warn('Error accessing initial voices:', voicesError);
+          // Try loading with delay as fallback
+          setTimeout(loadVoices, 500);
+        }
+      } catch (error) {
+        console.warn('Error initializing speech synthesis:', error);
+        speechSynthRef.current = null;
+      }
+    };
+    
+    // Initialize immediately and also on window load as fallback
+    initializeSpeech();
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('load', initializeSpeech);
+      return () => {
+        window.removeEventListener('load', initializeSpeech);
+      };
     }
-  }, [selectedVoice]);
+  }, []); // Remove selectedVoice dependency to avoid infinite loops
 
   // AI Speech Functions
   const startAILesson = () => {
@@ -722,17 +781,26 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
-                                  if (window.speechSynthesis) {
-                                    const testText = "Hello! This is how I will sound during the AI lesson. I'm your AI tutor and I'm excited to help you learn!";
-                                    const utterance = new SpeechSynthesisUtterance(testText);
-                                    const voice = availableVoices.find(v => v.name === selectedVoice);
-                                    if (voice) {
-                                      utterance.voice = voice;
-                                      utterance.rate = voiceRate[0];
-                                      utterance.pitch = voicePitch[0];
-                                      utterance.volume = voiceVolume[0];
-                                      window.speechSynthesis.speak(utterance);
+                                  try {
+                                    if (window.speechSynthesis && speechSynthRef.current) {
+                                      const testText = "Hello! This is how I will sound during the AI lesson. I'm your AI tutor and I'm excited to help you learn!";
+                                      const utterance = new SpeechSynthesisUtterance(testText);
+                                      const voice = availableVoices.find(v => v.name === selectedVoice);
+                                      if (voice) {
+                                        utterance.voice = voice;
+                                        utterance.rate = voiceRate[0];
+                                        utterance.pitch = voicePitch[0];
+                                        utterance.volume = voiceVolume[0];
+                                        speechSynthRef.current.speak(utterance);
+                                      }
                                     }
+                                  } catch (error) {
+                                    console.warn('Error testing voice:', error);
+                                    toast({
+                                      title: "Voice Test Failed",
+                                      description: "Unable to test voice. Please try again.",
+                                      variant: "destructive",
+                                    });
                                   }
                                 }}
                                 className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white flex-1"
@@ -855,7 +923,7 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
 
             {/* Meetings List */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {meetings?.map((meeting: Meeting) => (
+              {(meetings as Meeting[])?.map((meeting: Meeting) => (
                 <Card key={meeting.id} className="bg-slate-800/50 border-slate-700 hover:border-nexus-green/30 transition-colors">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between text-white">
@@ -912,7 +980,7 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
               ))}
             </div>
 
-            {meetings?.length === 0 && (
+            {(meetings as Meeting[])?.length === 0 && (
               <div className="text-center py-12">
                 <Video className="w-16 h-16 text-slate-400 mx-auto mb-4" />
                 <h3 className="text-2xl font-bold text-white mb-2">No Meetings Yet</h3>
@@ -1085,17 +1153,26 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
                                     size="sm"
                                     variant="outline"
                                     onClick={() => {
-                                      if (window.speechSynthesis) {
-                                        const testText = "Hello! This is how I will sound during the lesson.";
-                                        const utterance = new SpeechSynthesisUtterance(testText);
-                                        const voice = availableVoices.find(v => v.name === selectedVoice);
-                                        if (voice) {
-                                          utterance.voice = voice;
-                                          utterance.rate = voiceRate[0];
-                                          utterance.pitch = voicePitch[0];
-                                          utterance.volume = voiceVolume[0];
-                                          window.speechSynthesis.speak(utterance);
+                                      try {
+                                        if (window.speechSynthesis && speechSynthRef.current) {
+                                          const testText = "Hello! This is how I will sound during the lesson.";
+                                          const utterance = new SpeechSynthesisUtterance(testText);
+                                          const voice = availableVoices.find(v => v.name === selectedVoice);
+                                          if (voice) {
+                                            utterance.voice = voice;
+                                            utterance.rate = voiceRate[0];
+                                            utterance.pitch = voicePitch[0];
+                                            utterance.volume = voiceVolume[0];
+                                            speechSynthRef.current.speak(utterance);
+                                          }
                                         }
+                                      } catch (error) {
+                                        console.warn('Error testing voice:', error);
+                                        toast({
+                                          title: "Voice Test Failed",
+                                          description: "Unable to test voice. Please try again.",
+                                          variant: "destructive",
+                                        });
                                       }
                                     }}
                                     className="border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white w-full"

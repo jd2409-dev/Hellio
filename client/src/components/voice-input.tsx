@@ -17,7 +17,7 @@ export function VoiceInput({ onTranscript, onSpeaking, disabled, className }: Vo
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function VoiceInput({ onTranscript, onSpeaking, disabled, className }: Vo
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -54,7 +54,7 @@ export function VoiceInput({ onTranscript, onSpeaking, disabled, className }: Vo
         }
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         onSpeaking?.(false);
@@ -235,70 +235,141 @@ export function VoiceInput({ onTranscript, onSpeaking, disabled, className }: Vo
 
 // Speech synthesis utility for text-to-speech
 export class TextToSpeech {
-  private synth: SpeechSynthesis;
+  private synth: SpeechSynthesis | null = null;
   private voice: SpeechSynthesisVoice | null = null;
+  private initialized = false;
 
   constructor() {
-    this.synth = window.speechSynthesis;
-    this.initVoice();
+    this.initialize();
+  }
+
+  private initialize() {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      console.warn('Speech synthesis not available');
+      return;
+    }
+    
+    try {
+      this.synth = window.speechSynthesis;
+      this.initVoice();
+      this.initialized = true;
+    } catch (error) {
+      console.warn('Error initializing TextToSpeech:', error);
+    }
   }
 
   private initVoice() {
+    if (!this.synth) return;
+    
     const setVoice = () => {
-      const voices = this.synth.getVoices();
-      // Prefer English voices
-      this.voice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.name.includes('Google')
-      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+      try {
+        if (!this.synth) return;
+        
+        const voices = this.synth.getVoices();
+        if (voices.length === 0) return;
+        
+        // Prefer English voices
+        this.voice = voices.find(voice => 
+          voice.lang.startsWith('en') && voice.name.includes('Google')
+        ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+      } catch (error) {
+        console.warn('Error setting voice:', error);
+      }
     };
 
-    if (this.synth.getVoices().length > 0) {
-      setVoice();
-    } else {
-      this.synth.addEventListener('voiceschanged', setVoice);
+    try {
+      const currentVoices = this.synth.getVoices();
+      if (currentVoices.length > 0) {
+        setVoice();
+      } else {
+        this.synth.addEventListener('voiceschanged', setVoice);
+      }
+    } catch (error) {
+      console.warn('Error initializing voice:', error);
     }
   }
 
   speak(text: string, options?: { rate?: number; pitch?: number; volume?: number }) {
-    if (!text.trim()) return;
-
-    // Cancel any ongoing speech
-    this.synth.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    if (this.voice) {
-      utterance.voice = this.voice;
+    if (!text.trim() || !this.initialized || !this.synth) {
+      return Promise.resolve();
     }
-    
-    utterance.rate = options?.rate || 1;
-    utterance.pitch = options?.pitch || 1;
-    utterance.volume = options?.volume || 1;
 
-    this.synth.speak(utterance);
+    try {
+      // Cancel any ongoing speech
+      this.synth.cancel();
 
-    return new Promise<void>((resolve) => {
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-    });
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      if (this.voice) {
+        utterance.voice = this.voice;
+      }
+      
+      utterance.rate = options?.rate || 1;
+      utterance.pitch = options?.pitch || 1;
+      utterance.volume = options?.volume || 1;
+
+      this.synth.speak(utterance);
+
+      return new Promise<void>((resolve) => {
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+      });
+    } catch (error) {
+      console.warn('Error speaking text:', error);
+      return Promise.resolve();
+    }
   }
 
   stop() {
-    this.synth.cancel();
+    if (this.synth && this.initialized) {
+      try {
+        this.synth.cancel();
+      } catch (error) {
+        console.warn('Error stopping speech:', error);
+      }
+    }
   }
 
   get isSpeaking() {
-    return this.synth.speaking;
+    if (!this.synth || !this.initialized) return false;
+    
+    try {
+      return this.synth.speaking;
+    } catch (error) {
+      console.warn('Error checking speaking status:', error);
+      return false;
+    }
   }
 }
 
-// Global TTS instance
-export const tts = new TextToSpeech();
+// Global TTS instance (lazily initialized)
+let ttsInstance: TextToSpeech | null = null;
+
+export const tts = {
+  get instance() {
+    if (!ttsInstance) {
+      ttsInstance = new TextToSpeech();
+    }
+    return ttsInstance;
+  },
+  speak: (text: string, options?: { rate?: number; pitch?: number; volume?: number }) => {
+    const instance = tts.instance;
+    return instance ? instance.speak(text, options) : Promise.resolve();
+  },
+  stop: () => {
+    const instance = tts.instance;
+    if (instance) instance.stop();
+  },
+  get isSpeaking() {
+    const instance = tts.instance;
+    return instance ? instance.isSpeaking : false;
+  }
+};
 
 // Type declarations for better TypeScript support
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
   }
 }
