@@ -101,24 +101,67 @@ export default function AIMeeting() {
 
   // Initialize speech synthesis
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
       speechSynthRef.current = window.speechSynthesis;
+      
+      // Load voices
+      const loadVoices = () => {
+        const voices = speechSynthRef.current?.getVoices() || [];
+        console.log('Speech synthesis voices loaded:', voices.length);
+      };
+      
+      // Voices might not be loaded immediately
+      if (speechSynthRef.current.getVoices().length === 0) {
+        speechSynthRef.current.addEventListener('voiceschanged', loadVoices);
+      } else {
+        loadVoices();
+      }
     }
   }, []);
 
   // AI Speech Functions
   const startAILesson = () => {
-    if (!activeMeeting?.agenda) return;
+    console.log('Starting AI Lesson...', { activeMeeting, speechSynthRef: speechSynthRef.current });
+    
+    if (!activeMeeting?.agenda) {
+      console.log('No active meeting or agenda');
+      toast({
+        title: "No Meeting Active",
+        description: "Please start a meeting first to begin the AI lesson.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!speechSynthRef.current) {
+      console.log('Speech synthesis not available');
+      toast({
+        title: "Audio Not Available",
+        description: "Speech synthesis is not supported in your browser.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsAISpeaking(true);
+    
+    toast({
+      title: "AI Lesson Started! 🎤",
+      description: "The AI tutor will now speak the lesson content.",
+    });
+    
     const lessonContent = generateLessonContent(activeMeeting);
+    console.log('Generated lesson content:', lessonContent);
     
     // Split lesson into sections for progressive delivery
     const sections = lessonContent.split('\n\n').filter(section => section.trim());
+    console.log('Lesson sections:', sections.length);
+    
+    let currentSpeakingState = true;
     
     const speakSections = async () => {
-      for (let i = 0; i < sections.length; i++) {
-        if (!isAISpeaking) break; // Check if stopped
+      for (let i = 0; i < sections.length && currentSpeakingState; i++) {
+        console.log(`Speaking section ${i + 1}/${sections.length}`);
         
         setCurrentSpeechText(sections[i]);
         setCurrentSection(i);
@@ -128,14 +171,22 @@ export default function AIMeeting() {
         await speakText(sections[i]);
         
         // Pause between sections
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (currentSpeakingState) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
       
+      console.log('Finished speaking all sections');
       setIsAISpeaking(false);
       setCurrentSpeechText('');
+      currentSpeakingState = false;
     };
     
-    speakSections();
+    speakSections().catch(error => {
+      console.error('Error in speech sections:', error);
+      setIsAISpeaking(false);
+      setCurrentSpeechText('');
+    });
   };
 
   const stopAILesson = () => {
@@ -149,27 +200,44 @@ export default function AIMeeting() {
   const speakText = (text: string): Promise<void> => {
     return new Promise((resolve) => {
       if (!speechSynthRef.current) {
+        console.log('No speech synthesis available');
         resolve();
         return;
       }
 
+      console.log('Speaking text:', text.substring(0, 50) + '...');
+      
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
+      utterance.rate = 0.8;
       utterance.pitch = 1;
       utterance.volume = 1;
       
       // Try to get a good English voice
       const voices = speechSynthRef.current.getVoices();
+      console.log('Available voices:', voices.length);
+      
       const englishVoice = voices.find(voice => 
         voice.lang.startsWith('en') && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
-      ) || voices.find(voice => voice.lang.startsWith('en'));
+      ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
       
       if (englishVoice) {
         utterance.voice = englishVoice;
+        console.log('Using voice:', englishVoice.name);
       }
 
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
+      utterance.onstart = () => {
+        console.log('Speech started');
+      };
+
+      utterance.onend = () => {
+        console.log('Speech ended');
+        resolve();
+      };
+      
+      utterance.onerror = (event) => {
+        console.error('Speech error:', event);
+        resolve();
+      };
 
       speechSynthRef.current.speak(utterance);
     });
