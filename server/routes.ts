@@ -466,6 +466,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeSpent: timeSpent || 0,
       });
 
+      // Track study session for analytics
+      const { analyticsService } = await import("./services/analyticsService");
+      const subjectRecord = await storage.getSubjectByName(quizSubject);
+      await analyticsService.trackStudySession({
+        userId,
+        subjectId: subjectRecord?.id || null,
+        activityType: 'quiz',
+        duration: timeSpent || 60, // Default 1 minute if no time provided
+        completedAt: new Date(),
+      });
+
       // Update user XP and coins
       const currentUser = await storage.getUser(userId);
       if (currentUser) {
@@ -516,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User stats routes
+  // User stats routes - now using real analytics data
   app.get('/api/user/stats', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -525,16 +536,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const achievements = await storage.getUserAchievements(userId);
       const quizAttempts = await storage.getUserQuizAttempts(userId);
       
+      // Get real learning streak data
+      const { analyticsService } = await import("./services/analyticsService");
+      const learningStreak = await analyticsService.getLearningStreak(userId);
+      
+      // Calculate total study time from all sessions
+      const totalStudyTime = await analyticsService.getTotalStudyTime(userId);
+      
+      // Calculate level based on actual XP (every 100 XP = 1 level)
+      const actualLevel = Math.floor((user?.xp || 0) / 100) + 1;
+      
       const stats = {
         xp: user?.xp || 0,
         coins: user?.coins || 0,
-        level: user?.level || 1,
-        studyStreak: user?.studyStreak || 0,
+        level: actualLevel,
+        studyStreak: learningStreak?.currentStreak || 0,
+        longestStreak: learningStreak?.longestStreak || 0,
+        totalStudyTime: Math.round(totalStudyTime / 60), // Convert to minutes
         totalAchievements: achievements.length,
         averageQuizScore: quizAttempts.length > 0 
-          ? quizAttempts.reduce((sum, attempt) => sum + parseFloat(attempt.score), 0) / quizAttempts.length
+          ? Math.round((quizAttempts.reduce((sum, attempt) => sum + parseFloat(attempt.score), 0) / quizAttempts.length) * 100) / 100
           : 0,
         totalQuizzes: quizAttempts.length,
+        lastStudyDate: learningStreak?.lastStudyDate || null,
       };
       
       res.json(stats);
@@ -736,6 +760,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update meeting status to active
       const updatedMeeting = await storage.updateMeetingStatus(meetingId, 'active');
 
+      // Track study session for starting a meeting
+      const { analyticsService } = await import("./services/analyticsService");
+      const subjectRecord = await storage.getSubjectByName(meeting.subject);
+      await analyticsService.trackStudySession({
+        userId,
+        subjectId: subjectRecord?.id || null,
+        activityType: 'ai_meeting',
+        duration: meeting.duration * 60, // Convert minutes to seconds
+        completedAt: new Date(),
+      });
+
       // Generate initial welcome message
       const initialMessage = await generateInitialMeetingMessage({
         topic: meeting.topic,
@@ -791,11 +826,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousMessages: previousMessages.slice(-6), // Last 6 messages for context
       });
 
+      // Save user message first
+      await storage.createMeetingMessage({
+        meetingId,
+        role: 'user',
+        content: message,
+      });
+
       // Save AI response
       const aiMessage = await storage.createMeetingMessage({
         meetingId,
         role: 'assistant',
         content: aiResponse,
+      });
+
+      // Track additional study session time for chat interaction (30 seconds per message exchange)
+      const { analyticsService } = await import("./services/analyticsService");
+      const subjectRecord = await storage.getSubjectByName(meeting.subject);
+      await analyticsService.trackStudySession({
+        userId,
+        subjectId: subjectRecord?.id || null,
+        activityType: 'ai_chat',
+        duration: 30, // 30 seconds per chat exchange
+        completedAt: new Date(),
       });
 
       res.json({

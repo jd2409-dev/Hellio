@@ -40,6 +40,7 @@ export interface IStorage {
   
   // Subject operations
   getSubjects(): Promise<Subject[]>;
+  getSubjectByName(name: string): Promise<Subject | undefined>;
   createSubject(subject: InsertSubject): Promise<Subject>;
   
   // User subject operations
@@ -106,6 +107,11 @@ export class DatabaseStorage implements IStorage {
   // Subject operations
   async getSubjects(): Promise<Subject[]> {
     return await db.select().from(subjects);
+  }
+  
+  async getSubjectByName(name: string): Promise<Subject | undefined> {
+    const [subject] = await db.select().from(subjects).where(eq(subjects.name, name));
+    return subject;
   }
   
   async createSubject(subject: InsertSubject): Promise<Subject> {

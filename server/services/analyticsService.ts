@@ -63,6 +63,28 @@ export class AnalyticsService {
     return session;
   }
 
+  // Get learning streak for a user
+  async getLearningStreak(userId: string): Promise<LearningStreak | null> {
+    const [streak] = await db
+      .select()
+      .from(learningStreaks)
+      .where(eq(learningStreaks.userId, userId));
+    
+    return streak || null;
+  }
+
+  // Get total study time for a user (in seconds)
+  async getTotalStudyTime(userId: string): Promise<number> {
+    const [result] = await db
+      .select({
+        totalTime: sql<number>`COALESCE(SUM(${studySessions.duration}), 0)`.as('totalTime')
+      })
+      .from(studySessions)
+      .where(eq(studySessions.userId, userId));
+    
+    return result?.totalTime || 0;
+  }
+
   // Update learning streak
   async updateLearningStreak(userId: string): Promise<void> {
     const today = new Date();

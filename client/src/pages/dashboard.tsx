@@ -83,14 +83,14 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4 bg-slate-700/50 rounded-lg px-4 py-2">
               <div className="flex items-center space-x-2">
                 <Star className="h-4 w-4 text-emerald-400" />
-                <span className="text-sm font-semibold">{userStats?.xp || 2450} XP</span>
+                <span className="text-sm font-semibold">{userStats?.xp || 0} XP</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-amber-400 rounded-full"></div>
-                <span className="text-sm font-semibold">{userStats?.coins || 1280}</span>
+                <span className="text-sm font-semibold">{userStats?.coins || 0}</span>
               </div>
               <Badge variant="outline" className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                Level {userStats?.level || 12}
+                Level {userStats?.level || 1}
               </Badge>
             </div>
             
@@ -123,8 +123,8 @@ export default function Dashboard() {
               <p className="text-xl text-slate-400">Ready to continue your learning journey?</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-white mb-1">Day 47</div>
-              <div className="text-sm text-slate-400">Learning Streak 🔥</div>
+              <div className="text-2xl font-bold text-white mb-1">Day {userStats?.studyStreak || 0}</div>
+              <div className="text-sm text-slate-400">Learning Streak {userStats?.studyStreak > 0 ? '🔥' : ''}</div>
             </div>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function Dashboard() {
                 <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-orange-400" />
                 </div>
-                <span className="text-3xl font-bold text-orange-400">{userStats?.studyStreak || 47}</span>
+                <span className="text-3xl font-bold text-orange-400">{userStats?.studyStreak || 0}</span>
               </div>
               <h3 className="text-lg font-semibold text-white">Study Streak</h3>
               <p className="text-slate-400 text-sm">Days in a row</p>
@@ -150,7 +150,7 @@ export default function Dashboard() {
                 <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
                   <Trophy className="h-6 w-6 text-amber-400" />
                 </div>
-                <span className="text-3xl font-bold text-amber-400">{userStats?.totalAchievements || 15}</span>
+                <span className="text-3xl font-bold text-amber-400">{userStats?.totalAchievements || 0}</span>
               </div>
               <h3 className="text-lg font-semibold text-white">Achievements</h3>
               <p className="text-slate-400 text-sm">Unlocked</p>
@@ -163,10 +163,10 @@ export default function Dashboard() {
                 <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-emerald-400" />
                 </div>
-                <span className="text-3xl font-bold text-emerald-400">89%</span>
+                <span className="text-3xl font-bold text-emerald-400">{Math.round(userStats?.averageQuizScore || 0)}%</span>
               </div>
               <h3 className="text-lg font-semibold text-white">Overall Progress</h3>
-              <p className="text-slate-400 text-sm">This semester</p>
+              <p className="text-slate-400 text-sm">Average quiz score</p>
             </CardContent>
           </Card>
           
@@ -176,10 +176,10 @@ export default function Dashboard() {
                 <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
                   <Clock className="h-6 w-6 text-blue-400" />
                 </div>
-                <span className="text-3xl font-bold text-blue-400">12.4h</span>
+                <span className="text-3xl font-bold text-blue-400">{Math.round((userStats?.totalStudyTime || 0) / 60 * 10) / 10}h</span>
               </div>
               <h3 className="text-lg font-semibold text-white">Study Time</h3>
-              <p className="text-slate-400 text-sm">This week</p>
+              <p className="text-slate-400 text-sm">Total logged</p>
             </CardContent>
           </Card>
         </div>
