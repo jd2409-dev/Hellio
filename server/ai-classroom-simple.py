@@ -111,33 +111,37 @@ Ready to begin our interactive learning session!"""
 
     def simulate_ai_presence(self, jitsi_url, outline, topic):
         """Simulate AI bot presence and capabilities"""
-        print(f"🤖 AI Tutor joining room: {jitsi_url}")
-        print(f"📚 Topic: {topic}")
-        print("🎙️ AI capabilities active:")
-        print("  • Text-to-speech ready for lesson delivery")
-        print("  • Chat monitoring for student questions")
-        print("  • Real-time response generation available")
-        print("  • Interactive Q&A session prepared")
+        # Use stderr for debug output to avoid JSON parsing issues
+        import sys
+        sys.stderr.write(f"🤖 AI Tutor joining room: {jitsi_url}\n")
+        sys.stderr.write(f"📚 Topic: {topic}\n")
+        sys.stderr.write("🎙️ AI capabilities active:\n")
+        sys.stderr.write("  • Text-to-speech ready for lesson delivery\n")
+        sys.stderr.write("  • Chat monitoring for student questions\n")
+        sys.stderr.write("  • Real-time response generation available\n")
+        sys.stderr.write("  • Interactive Q&A session prepared\n")
         
         # Simulate lesson delivery timing
         time.sleep(2)
-        print("✅ AI Tutor has joined the room and is ready to teach!")
-        print("📖 Lesson content loaded and speech synthesis prepared")
-        print("💬 Monitoring for student questions and interactions")
+        sys.stderr.write("✅ AI Tutor has joined the room and is ready to teach!\n")
+        sys.stderr.write("📖 Lesson content loaded and speech synthesis prepared\n")
+        sys.stderr.write("💬 Monitoring for student questions and interactions\n")
         
         # Keep session active for demo
         session_duration = 30  # 30 seconds for demo
         for i in range(session_duration):
             time.sleep(1)
             if i % 10 == 0:
-                print(f"🔄 AI session active... ({session_duration - i}s remaining)")
+                sys.stderr.write(f"🔄 AI session active... ({session_duration - i}s remaining)\n")
         
-        print("✅ AI classroom session demonstration completed")
+        sys.stderr.write("✅ AI classroom session demonstration completed\n")
 
     def create_meeting(self, topic):
         """Create AI live classroom meeting"""
         try:
-            print(f"Creating AI Live Classroom for: {topic}")
+            # Use stderr for debug output to avoid JSON parsing issues
+            import sys
+            sys.stderr.write(f"Creating AI Live Classroom for: {topic}\n")
             
             # Generate unique room URL
             room_id = f"ai-class-{topic.replace(' ', '-').lower()}-{self.random_room()}"
@@ -170,7 +174,8 @@ Ready to begin our interactive learning session!"""
             }
             
         except Exception as e:
-            print(f"Meeting creation error: {e}")
+            import sys
+            sys.stderr.write(f"Meeting creation error: {e}\n")
             return {
                 "url": None,
                 "outline": None,

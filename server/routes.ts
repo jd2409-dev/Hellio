@@ -829,6 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let output = '';
       let errorOutput = '';
+      let responseHandled = false;
 
       pythonProcess.stdout.on('data', (data: Buffer) => {
         output += data.toString();
@@ -839,12 +840,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       pythonProcess.on('close', (code: number) => {
+        if (responseHandled) return;
+        responseHandled = true;
+
         if (code === 0) {
           try {
             const result = JSON.parse(output.trim());
             res.json(result);
           } catch (parseError) {
             console.error('Parse error:', parseError);
+            console.error('Raw output:', output);
             res.status(500).json({ message: 'Failed to parse response' });
           }
         } else {
@@ -854,10 +859,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Set timeout for the request
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
+        if (responseHandled) return;
+        responseHandled = true;
+        
         pythonProcess.kill();
         res.status(408).json({ message: 'Request timeout' });
       }, 30000); // 30 second timeout
+
+      // Clean up timeout if process completes
+      pythonProcess.on('close', () => {
+        clearTimeout(timeoutId);
+      });
 
     } catch (error) {
       console.error('Create meeting error:', error);
