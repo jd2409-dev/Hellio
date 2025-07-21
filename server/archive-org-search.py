@@ -28,13 +28,16 @@ def search_archive_org_books(query, category=None, limit=20):
                     f'subject:"{full_query}"'
                 ])
             
-            # Strategy 2: Individual words with higher weight on title
+            # Strategy 2: Individual words with wildcards for better keyword matching
             for word in query_words:
                 search_strategies.extend([
-                    f'title:{word}^3',  # Boost title matches
-                    f'subject:{word}^2',  # Boost subject matches
-                    f'creator:{word}',
-                    f'description:{word}'
+                    f'title:*{word}*^3',      # Wildcard title matches
+                    f'title:{word}^2',        # Exact title matches  
+                    f'subject:*{word}*^2',    # Wildcard subject matches
+                    f'subject:{word}',        # Exact subject matches
+                    f'creator:*{word}*',      # Creator wildcard
+                    f'description:*{word}*',  # Description wildcard
+                    f'{word}'                 # General text search
                 ])
             
             # Strategy 3: For multi-word queries, try partial combinations
@@ -73,10 +76,29 @@ def search_archive_org_books(query, category=None, limit=20):
                 category_terms = [f'subject:{term}' for term in category_map[category]]
                 search_parts.append(f'({" OR ".join(category_terms)})')
         
-        # Always filter for books/texts and exclude certain collections that aren't books
+        # Always filter for books/texts and exclude non-educational content
         search_parts.append('mediatype:texts')
-        search_parts.append('-collection:softwarehistory')  # Exclude game manuals
-        search_parts.append('-collection:vgmuseum')  # Exclude video game content
+        
+        # Include educational collections
+        educational_collections = [
+            'collection:opensource',
+            'collection:books', 
+            'collection:internetarchivebooks',
+            'collection:library_of_congress',
+            'collection:inlibrary'
+        ]
+        search_parts.append(f'({" OR ".join(educational_collections)})')
+        
+        # Exclude non-educational content
+        exclusions = [
+            '-collection:softwarehistory',   # Game manuals
+            '-collection:vgmuseum',          # Video games  
+            '-collection:gamemanuals',       # Game guides
+            '-subject:skyrim',               # Game mods
+            '-subject:fallout',              # Game mods
+            '-subject:gaming'                # Gaming content
+        ]
+        search_parts.extend(exclusions)
         
         # Combine all parts with AND
         search_query = ' AND '.join(search_parts)
