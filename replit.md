@@ -80,6 +80,15 @@ Key entities include:
 - **Zero-cost Implementation**: Uses free Jitsi rooms and open-source tools for education delivery
 - **Multi-modal Learning**: Combines visual content, spoken explanations, and text-based interactions
 
+### Internet Archive Book Integration (Updated January 2025)
+- **Archive.org Integration**: Replaced PDF Drive with Internet Archive's vast educational book collection
+- **Comprehensive Search**: Multi-field search across titles, subjects, creators, and descriptions for broader topic coverage
+- **Rich Metadata**: Displays book descriptions, download counts, publication years, and subject classifications
+- **Multiple Format Access**: Users access books through Archive.org where PDF, EPUB, and other formats are available
+- **Category Filtering**: Enhanced category mapping with related terms (e.g., mathematics includes calculus, algebra, geometry)
+- **Ethical Access**: Uses Archive.org's official API for legitimate access to educational resources
+- **Subject Integration**: Books can be saved to user libraries and associated with study subjects
+
 ### AI Study Planner (Updated January 2025)
 - **Calendar Interface**: Complete calendar system with multiple view modes (calendar, week, day)
 - **AI-Powered Plan Generation**: Uses Gemini API to create personalized study schedules based on exam requirements

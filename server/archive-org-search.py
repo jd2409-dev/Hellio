@@ -9,38 +9,65 @@ def search_archive_org_books(query, category=None, limit=20):
     Search Archive.org for books using their advanced search API
     """
     try:
-        # Build search query - simpler approach for Archive.org
-        search_terms = []
+        # Build comprehensive search query for Archive.org
+        search_parts = []
         
-        # Add the main query
+        # Create broad search terms from the query
         if query:
-            search_terms.append(f'({query})')
+            query_words = query.lower().split()
+            
+            # Search in multiple fields for broader results
+            field_searches = []
+            
+            # Add the full query as a phrase search for exact matches
+            full_query = query.replace('"', '')  # Remove existing quotes
+            field_searches.extend([
+                f'title:"{full_query}"',
+                f'subject:"{full_query}"',
+                f'description:"{full_query}"'
+            ])
+            
+            # Add individual words for broader matching
+            for word in query_words:
+                if len(word) > 2:  # Skip very short words
+                    field_searches.extend([
+                        f'title:{word}',
+                        f'subject:{word}',
+                        f'creator:{word}',
+                        f'description:{word}'
+                    ])
+            
+            # Combine with OR to find books matching any field
+            if field_searches:
+                search_parts.append(f'({" OR ".join(field_searches)})')
         
         # Add category filter if specified
         if category and category != 'all' and category != 'null':
             category_map = {
-                'science': 'science',
-                'mathematics': 'mathematics',
-                'engineering': 'engineering',
-                'physics': 'physics',
-                'chemistry': 'chemistry',
-                'biology': 'biology',
-                'computer': 'computer',
-                'programming': 'programming',
-                'history': 'history',
-                'literature': 'literature',
-                'philosophy': 'philosophy',
-                'business': 'business',
-                'economics': 'economics'
+                'science': ['science', 'physics', 'chemistry', 'biology'],
+                'mathematics': ['mathematics', 'math', 'algebra', 'calculus', 'geometry'],
+                'engineering': ['engineering', 'technology', 'mechanical', 'electrical'],
+                'physics': ['physics', 'mechanics', 'thermodynamics', 'quantum'],
+                'chemistry': ['chemistry', 'organic', 'inorganic', 'biochemistry'],
+                'biology': ['biology', 'genetics', 'anatomy', 'botany', 'zoology'],
+                'computer': ['computer', 'programming', 'software', 'algorithms'],
+                'programming': ['programming', 'coding', 'software', 'development'],
+                'history': ['history', 'historical', 'ancient', 'modern'],
+                'literature': ['literature', 'poetry', 'fiction', 'novels'],
+                'philosophy': ['philosophy', 'ethics', 'logic', 'metaphysics'],
+                'business': ['business', 'management', 'economics', 'finance'],
+                'economics': ['economics', 'finance', 'money', 'trade']
             }
+            
             if category in category_map:
-                search_terms.append(f'subject:{category_map[category]}')
+                category_terms = [f'subject:{term}' for term in category_map[category]]
+                search_parts.append(f'({" OR ".join(category_terms)})')
         
         # Always filter for books/texts
-        search_terms.append('mediatype:texts')
+        search_parts.append('mediatype:texts')
         
-        # Combine search terms
-        search_query = ' AND '.join(search_terms)
+        # Combine all parts with AND
+        search_query = ' AND '.join(search_parts)
         
         # Use the regular search API  
         url = "https://archive.org/advancedsearch.php"
@@ -48,7 +75,7 @@ def search_archive_org_books(query, category=None, limit=20):
             'q': search_query,
             'fl': 'identifier,title,creator,date,subject,description,downloads,item_size,format,language',
             'sort': 'downloads desc',
-            'rows': min(limit, 50),
+            'rows': min(limit, 100),
             'output': 'json'
         }
         
