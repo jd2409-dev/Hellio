@@ -70,12 +70,9 @@ export default function PomodoroTimer() {
       duration: number;
       subjectId?: number;
     }) => {
-      return apiRequest('/api/pomodoro/sessions', {
-        method: 'POST',
-        body: data,
-      });
+      return apiRequest('POST', '/api/pomodoro/sessions', data);
     },
-    onSuccess: (session) => {
+    onSuccess: (session: any) => {
       setCurrentSession(session);
       startTimeRef.current = new Date();
       pausedTimeRef.current = 0;
@@ -90,10 +87,8 @@ export default function PomodoroTimer() {
       actualDuration?: number;
       pausedTime?: number;
     }) => {
-      return apiRequest(`/api/pomodoro/sessions/${data.sessionId}`, {
-        method: 'PATCH',
-        body: data,
-      });
+      const { sessionId, ...updateData } = data;
+      return apiRequest('PATCH', `/api/pomodoro/sessions/${sessionId}`, updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pomodoro/stats'] });

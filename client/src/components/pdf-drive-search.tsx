@@ -55,13 +55,10 @@ export default function PdfDriveSearch() {
   const searchMutation = useMutation({
     mutationFn: async (data: { query: string; category?: string; limit?: number }) => {
       setIsSearching(true);
-      const response = await apiRequest('/api/pdf-drive/search', {
-        method: 'POST',
-        body: data,
-      });
+      const response = await apiRequest('POST', '/api/pdf-drive/search', data);
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSearchResults(data.books || []);
       setIsSearching(false);
       toast({
@@ -83,10 +80,7 @@ export default function PdfDriveSearch() {
   // Save book to library
   const saveBookMutation = useMutation({
     mutationFn: async (data: { bookId: number; subjectId?: number }) => {
-      return apiRequest('/api/pdf-drive/save-book', {
-        method: 'POST',
-        body: data,
-      });
+      return apiRequest('POST', '/api/pdf-drive/save-book', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pdf-drive/library'] });
@@ -107,11 +101,9 @@ export default function PdfDriveSearch() {
   // Download book
   const downloadBookMutation = useMutation({
     mutationFn: async (bookId: number) => {
-      return apiRequest(`/api/pdf-drive/download/${bookId}`, {
-        method: 'POST',
-      });
+      return apiRequest('POST', `/api/pdf-drive/download/${bookId}`);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.downloadUrl) {
         window.open(data.downloadUrl, '_blank');
         toast({
@@ -135,7 +127,7 @@ export default function PdfDriveSearch() {
     
     searchMutation.mutate({
       query: searchQuery.trim(),
-      category: searchCategory || undefined,
+      category: searchCategory && searchCategory !== 'all' ? searchCategory : undefined,
       limit: 20,
     });
   };
@@ -152,7 +144,7 @@ export default function PdfDriveSearch() {
   };
 
   const isBookSaved = (bookId: number) => {
-    return savedBooks.some((saved: any) => saved.bookId === bookId);
+    return Array.isArray(savedBooks) && savedBooks.some((saved: any) => saved.bookId === bookId);
   };
 
   return (
@@ -181,7 +173,7 @@ export default function PdfDriveSearch() {
                   <SelectValue placeholder="Category (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   <SelectItem value="science">Science</SelectItem>
                   <SelectItem value="mathematics">Mathematics</SelectItem>
                   <SelectItem value="engineering">Engineering</SelectItem>
