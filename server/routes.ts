@@ -1271,7 +1271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PDF Drive Routes
 
-  // Search PDF Drive
+  // Search Archive.org
   app.post('/api/pdf-drive/search', isAuthenticated, async (req: any, res) => {
     try {
       const { query, category, limit = 20 } = req.body;
@@ -1280,9 +1280,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Search query is required' });
       }
 
-      // Use Python scraper to search PDF Drive
+      // Use Python script to search Archive.org
       const pythonProcess = spawn('python3', [
-        'server/pdf-drive-scraper.py',
+        'server/archive-org-search.py',
+        'search',
         query.trim(),
         category || 'null',
         limit.toString()
@@ -1311,23 +1312,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 try {
                   const book = await storage.createPdfBook({
                     title: bookData.title || '',
-                    author: bookData.author,
-                    pages: bookData.pages,
+                    author: bookData.author || 'Unknown Author',
+                    pages: null, // Archive.org doesn't provide page count directly
                     year: bookData.year,
-                    size: bookData.size,
-                    extension: bookData.extension || 'pdf',
-                    preview: bookData.preview,
+                    size: bookData.size || null,
+                    extension: bookData.format?.includes('PDF') ? 'pdf' : 'various',
+                    preview: bookData.viewUrl,
                     downloadUrl: bookData.downloadUrl,
                     imageUrl: bookData.imageUrl,
-                    category: bookData.category,
+                    category: bookData.category || 'books',
                     language: bookData.language || 'english',
                     searchKeywords: query.split(' ').filter(word => word.length > 2),
-                    popularity: 0,
+                    popularity: bookData.downloads || 0,
                   });
-                  books.push({ ...book, id: book.id });
+                  books.push({ 
+                    ...book, 
+                    id: book.id,
+                    identifier: bookData.identifier, // Add Archive.org identifier
+                    description: bookData.description,
+                    subject: bookData.subject
+                  });
                 } catch (dbError) {
                   // If book already exists, just add it to results
-                  books.push({ ...bookData, id: bookData.id });
+                  books.push({ 
+                    ...bookData, 
+                    id: bookData.id || Math.random() * 1000000
+                  });
                 }
               }
 
@@ -1358,8 +1368,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error("PDF Drive search error:", error);
-      res.status(500).json({ message: "Failed to search PDF Drive" });
+      console.error("Archive.org search error:", error);
+      res.status(500).json({ message: "Failed to search Archive.org" });
     }
   });
 
@@ -1396,25 +1406,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Download book (get download URL)
-  app.post('/api/pdf-drive/download/:id', isAuthenticated, async (req: any, res) => {
+  // Get book details and download URLs from Archive.org
+  app.post('/api/pdf-drive/download/:identifier', isAuthenticated, async (req: any, res) => {
     try {
-      const bookId = parseInt(req.params.id);
-      const book = await storage.getPdfBook(bookId);
+      const identifier = req.params.identifier;
 
-      if (!book) {
-        return res.status(404).json({ message: 'Book not found' });
-      }
+      // Use Python script to get book details from Archive.org
+      const pythonProcess = spawn('python3', [
+        'server/archive-org-search.py',
+        'details',
+        identifier
+      ]);
 
-      // For now, return the stored download URL
-      // In a more advanced implementation, this could refresh the URL via scraping
-      res.json({
-        success: true,
-        downloadUrl: book.downloadUrl,
+      let output = '';
+      let errorOutput = '';
+
+      pythonProcess.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code: number) => {
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output.trim());
+            if (result.success) {
+              res.json({
+                success: true,
+                downloadUrls: result.downloadUrls,
+                viewUrl: result.viewUrl,
+                title: result.title,
+                description: result.description
+              });
+            } else {
+              res.status(404).json({ message: result.error || 'Book not found' });
+            }
+          } catch (parseError) {
+            console.error('Parse error:', parseError);
+            res.status(500).json({ message: 'Failed to parse book details' });
+          }
+        } else {
+          console.error('Python process error:', errorOutput);
+          res.status(500).json({ message: 'Failed to get book details' });
+        }
       });
     } catch (error) {
-      console.error("Download book error:", error);
-      res.status(500).json({ message: "Failed to get download URL" });
+      console.error("Get book details error:", error);
+      res.status(500).json({ message: "Failed to get book details" });
     }
   });
 

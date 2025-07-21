@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 
 interface PdfBook {
   id: number;
+  identifier?: string; // Archive.org identifier
   title: string;
   author?: string;
   pages?: number;
@@ -20,10 +21,14 @@ interface PdfBook {
   extension?: string;
   preview?: string;
   downloadUrl?: string;
+  viewUrl?: string; // Archive.org view URL
   imageUrl?: string;
   category?: string;
   language?: string;
   popularity?: number;
+  description?: string;
+  subject?: string;
+  downloads?: number; // Download count from Archive.org
 }
 
 interface Subject {
@@ -71,7 +76,7 @@ export default function PdfDriveSearch() {
       console.error('Search error:', error);
       toast({
         title: 'Search Failed',
-        description: 'Unable to search PDF Drive. Please try again.',
+        description: 'Unable to search Internet Archive. Please try again.',
         variant: 'destructive',
       });
     },
@@ -100,22 +105,30 @@ export default function PdfDriveSearch() {
 
   // Download book
   const downloadBookMutation = useMutation({
-    mutationFn: async (bookId: number) => {
-      return apiRequest('POST', `/api/pdf-drive/download/${bookId}`);
+    mutationFn: async (identifier: string) => {
+      return apiRequest('POST', `/api/pdf-drive/download/${identifier}`);
     },
     onSuccess: (data: any) => {
-      if (data.downloadUrl) {
-        window.open(data.downloadUrl, '_blank');
+      if (data.downloadUrls && Object.keys(data.downloadUrls).length > 0) {
+        // Open the Archive.org view page first
+        if (data.viewUrl) {
+          window.open(data.viewUrl, '_blank');
+        }
         toast({
-          title: 'Download Started',
-          description: 'Your book download should begin shortly.',
+          title: 'Archive.org Opened',
+          description: 'Book page opened. You can download various formats from there.',
+        });
+      } else {
+        toast({
+          title: 'View Book',
+          description: 'Opening book details on Archive.org',
         });
       }
     },
     onError: () => {
       toast({
-        title: 'Download Failed',
-        description: 'Unable to download book. Please try again.',
+        title: 'View Failed',
+        description: 'Unable to open book details. Please try again.',
         variant: 'destructive',
       });
     },
@@ -139,8 +152,16 @@ export default function PdfDriveSearch() {
     });
   };
 
-  const handleDownloadBook = (bookId: number) => {
-    downloadBookMutation.mutate(bookId);
+  const handleDownloadBook = (book: PdfBook) => {
+    if (book.identifier) {
+      downloadBookMutation.mutate(book.identifier);
+    } else if (book.viewUrl) {
+      window.open(book.viewUrl, '_blank');
+      toast({
+        title: 'View Book',
+        description: 'Opening book on Archive.org',
+      });
+    }
   };
 
   const isBookSaved = (bookId: number) => {
@@ -154,7 +175,7 @@ export default function PdfDriveSearch() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-nexus-green">
             <BookOpen className="w-5 h-5" />
-            Search PDF Drive
+            Search Internet Archive
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -162,7 +183,7 @@ export default function PdfDriveSearch() {
             <div className="flex gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Search for books, authors, topics..."
+                  placeholder="Search books from Internet Archive..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="glass-effect border-nexus-green/20 focus:border-nexus-green"
@@ -269,11 +290,27 @@ export default function PdfDriveSearch() {
                       </div>
                     </div>
 
-                    {/* Preview */}
-                    {book.preview && (
+                    {/* Description/Preview */}
+                    {(book.description || book.preview) && (
                       <p className="text-xs text-muted-foreground line-clamp-3">
-                        {book.preview}
+                        {book.description || book.preview}
                       </p>
+                    )}
+                    
+                    {/* Subject and Downloads info */}
+                    {(book.subject || book.downloads) && (
+                      <div className="flex flex-wrap gap-1">
+                        {book.subject && (
+                          <Badge variant="secondary" className="text-xs px-2 py-0">
+                            {book.subject.split(',')[0]} {/* Show first subject */}
+                          </Badge>
+                        )}
+                        {book.downloads && (
+                          <Badge variant="outline" className="text-xs px-2 py-0">
+                            {book.downloads} downloads
+                          </Badge>
+                        )}
+                      </div>
                     )}
 
                     <Separator className="border-nexus-green/10" />
@@ -283,12 +320,12 @@ export default function PdfDriveSearch() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDownloadBook(book.id)}
+                        onClick={() => handleDownloadBook(book)}
                         disabled={downloadBookMutation.isPending}
                         className="flex-1 text-xs border-nexus-green/20 hover:bg-nexus-green/10"
                       >
-                        <Download className="w-3 h-3 mr-1" />
-                        Download
+                        <Eye className="w-3 h-3 mr-1" />
+                        View & Download
                       </Button>
                       
                       <Button
@@ -352,7 +389,7 @@ export default function PdfDriveSearch() {
               No books found
             </h3>
             <p className="text-muted-foreground mb-4">
-              Try adjusting your search terms or browse different categories.
+              Try adjusting your search terms or browse different categories from Internet Archive's collection.
             </p>
             <Button
               variant="outline"
@@ -374,7 +411,7 @@ export default function PdfDriveSearch() {
               Discover Educational Books
             </h3>
             <p className="text-muted-foreground mb-4">
-              Search through millions of free educational PDFs from PDF Drive. 
+              Search through millions of free educational books from Internet Archive. 
               Find textbooks, research papers, and study materials for any subject.
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
