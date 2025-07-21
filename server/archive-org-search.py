@@ -14,57 +14,69 @@ def search_archive_org_books(query, category=None, limit=20):
         
         # Create broad search terms from the query
         if query:
-            query_words = query.lower().split()
+            query_words = [word.lower() for word in query.split() if len(word) > 2]
             
-            # Search in multiple fields for broader results
-            field_searches = []
+            # For better book discovery, create multiple search strategies
+            search_strategies = []
             
-            # Add the full query as a phrase search for exact matches
-            full_query = query.replace('"', '')  # Remove existing quotes
-            field_searches.extend([
-                f'title:"{full_query}"',
-                f'subject:"{full_query}"',
-                f'description:"{full_query}"'
-            ])
+            # Strategy 1: Full phrase search in title and description
+            full_query = query.replace('"', '').strip()
+            if full_query:
+                search_strategies.extend([
+                    f'title:"{full_query}"',
+                    f'description:"{full_query}"',
+                    f'subject:"{full_query}"'
+                ])
             
-            # Add individual words for broader matching
+            # Strategy 2: Individual words with higher weight on title
             for word in query_words:
-                if len(word) > 2:  # Skip very short words
-                    field_searches.extend([
-                        f'title:{word}',
-                        f'subject:{word}',
-                        f'creator:{word}',
-                        f'description:{word}'
-                    ])
+                search_strategies.extend([
+                    f'title:{word}^3',  # Boost title matches
+                    f'subject:{word}^2',  # Boost subject matches
+                    f'creator:{word}',
+                    f'description:{word}'
+                ])
             
-            # Combine with OR to find books matching any field
-            if field_searches:
-                search_parts.append(f'({" OR ".join(field_searches)})')
+            # Strategy 3: For multi-word queries, try partial combinations
+            if len(query_words) > 1:
+                for i in range(len(query_words)):
+                    for j in range(i + 1, len(query_words)):
+                        pair = f'"{query_words[i]} {query_words[j]}"'
+                        search_strategies.extend([
+                            f'title:{pair}',
+                            f'description:{pair}'
+                        ])
+            
+            # Combine all strategies with OR
+            if search_strategies:
+                search_parts.append(f'({" OR ".join(search_strategies)})')
         
         # Add category filter if specified
         if category and category != 'all' and category != 'null':
             category_map = {
-                'science': ['science', 'physics', 'chemistry', 'biology'],
-                'mathematics': ['mathematics', 'math', 'algebra', 'calculus', 'geometry'],
-                'engineering': ['engineering', 'technology', 'mechanical', 'electrical'],
-                'physics': ['physics', 'mechanics', 'thermodynamics', 'quantum'],
-                'chemistry': ['chemistry', 'organic', 'inorganic', 'biochemistry'],
-                'biology': ['biology', 'genetics', 'anatomy', 'botany', 'zoology'],
-                'computer': ['computer', 'programming', 'software', 'algorithms'],
-                'programming': ['programming', 'coding', 'software', 'development'],
-                'history': ['history', 'historical', 'ancient', 'modern'],
-                'literature': ['literature', 'poetry', 'fiction', 'novels'],
-                'philosophy': ['philosophy', 'ethics', 'logic', 'metaphysics'],
-                'business': ['business', 'management', 'economics', 'finance'],
-                'economics': ['economics', 'finance', 'money', 'trade']
+                'science': ['science', 'physics', 'chemistry', 'biology', 'scientific'],
+                'mathematics': ['mathematics', 'math', 'algebra', 'calculus', 'geometry', 'mathematical'],
+                'engineering': ['engineering', 'technology', 'mechanical', 'electrical', 'technical'],
+                'physics': ['physics', 'mechanics', 'thermodynamics', 'quantum', 'physical'],
+                'chemistry': ['chemistry', 'organic', 'inorganic', 'biochemistry', 'chemical'],
+                'biology': ['biology', 'genetics', 'anatomy', 'botany', 'zoology', 'biological'],
+                'computer': ['computer', 'programming', 'software', 'algorithms', 'computing'],
+                'programming': ['programming', 'coding', 'software', 'development', 'code'],
+                'history': ['history', 'historical', 'ancient', 'modern', 'chronicle'],
+                'literature': ['literature', 'poetry', 'fiction', 'novels', 'literary', 'stories'],
+                'philosophy': ['philosophy', 'ethics', 'logic', 'metaphysics', 'philosophical'],
+                'business': ['business', 'management', 'economics', 'finance', 'commerce'],
+                'economics': ['economics', 'finance', 'money', 'trade', 'economic']
             }
             
             if category in category_map:
                 category_terms = [f'subject:{term}' for term in category_map[category]]
                 search_parts.append(f'({" OR ".join(category_terms)})')
         
-        # Always filter for books/texts
+        # Always filter for books/texts and exclude certain collections that aren't books
         search_parts.append('mediatype:texts')
+        search_parts.append('-collection:softwarehistory')  # Exclude game manuals
+        search_parts.append('-collection:vgmuseum')  # Exclude video game content
         
         # Combine all parts with AND
         search_query = ' AND '.join(search_parts)
@@ -93,14 +105,28 @@ def search_archive_org_books(query, category=None, limit=20):
             docs = data['items']
         
         if docs:
+            filtered_books = 0
             for idx, item in enumerate(docs):
                 # Get additional metadata for each item
                 identifier = item.get('identifier', '')
                 if not identifier:
                     continue
                 
+                # Filter out non-book content
+                title = item.get('title', '').lower()
+                description = str(item.get('description', '')).lower()
+                
+                # Skip software, manuals, and other non-book content
+                skip_keywords = ['manual', 'game', 'software', 'version', 'patch', 'cheat', 
+                               'walkthrough', 'strategy guide', 'development', 'beta', 'hint',
+                               'crack', 'trainer', 'save file', 'rom', 'emulator']
+                
+                if any(keyword in title or keyword in description for keyword in skip_keywords):
+                    filtered_books += 1
+                    continue
+                
                 book = {
-                    'id': idx + 1,
+                    'id': len(books) + 1,
                     'identifier': identifier,
                     'title': item.get('title', 'Unknown Title'),
                     'author': ', '.join(item.get('creator', [])) if isinstance(item.get('creator'), list) else item.get('creator', 'Unknown Author'),
@@ -119,10 +145,15 @@ def search_archive_org_books(query, category=None, limit=20):
                 }
                 books.append(book)
         
+        total_found = data.get('response', {}).get('numFound', 0) if 'response' in data else len(docs)
+        
         return {
             'success': True,
             'books': books,
-            'total': len(books)
+            'total': len(books),
+            'query': query,
+            'total_found': total_found,
+            'message': f"Found {len(books)} relevant books out of {total_found} total results" if books else "No books found matching your search. Try different keywords or browse categories."
         }
         
     except requests.RequestException as e:

@@ -389,11 +389,35 @@ export default function PdfDriveSearch() {
               No books found
             </h3>
             <p className="text-muted-foreground mb-4">
-              Try adjusting your search terms or browse different categories from Internet Archive's collection.
+              "{searchQuery}" might not be available in Internet Archive's free collection due to copyright restrictions.
             </p>
+            <div className="space-y-3 mb-6">
+              <p className="text-sm text-muted-foreground font-medium">
+                Try searching for:
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+                {['classic literature', 'mathematics textbooks', 'science books', 'programming', 'history', 'philosophy'].map((suggestion) => (
+                  <Button
+                    key={suggestion}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery(suggestion);
+                      searchMutation.mutate({ query: suggestion, category: searchCategory, limit: 20 });
+                    }}
+                    className="border-nexus-green/20 hover:bg-nexus-green/10 text-xs"
+                  >
+                    {suggestion}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <Button
               variant="outline"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                setSearchResults([]);
+              }}
               className="border-nexus-green/20 hover:bg-nexus-green/10"
             >
               Clear search
