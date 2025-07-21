@@ -29,8 +29,8 @@ export default function PomodoroPage() {
             <div className="flex items-center gap-4">
               <Link href="/">
                 <Button 
-                  variant="ghost" 
-                  className="text-nexus-green hover:bg-nexus-green/10"
+                  variant="default" 
+                  className="bg-nexus-green hover:bg-nexus-green/90 text-white font-semibold"
                 >
                   <ArrowLeft className="w-5 h-5 mr-2" />
                   Back to Dashboard
@@ -157,6 +157,11 @@ export default function PomodoroPage() {
             </Card>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-8 text-center text-sm text-muted-foreground">
+          Created by JD Vinod
+        </footer>
       </div>
     </div>
   );

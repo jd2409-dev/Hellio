@@ -459,6 +459,11 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-8 text-center text-sm text-muted-foreground">
+          Created by JD Vinod
+        </footer>
       </div>
     </div>
   );

@@ -556,7 +556,7 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
+              <Button variant="default" size="sm" className="bg-nexus-green hover:bg-nexus-green/90 text-white font-semibold">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
@@ -1283,6 +1283,11 @@ Thank you for joining this AI-powered learning session. Feel free to ask questio
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="mt-8 text-center text-sm text-muted-foreground">
+        Created by JD Vinod
+      </footer>
     </div>
   );
 }

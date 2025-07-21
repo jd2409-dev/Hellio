@@ -184,7 +184,7 @@ export default function TextbookUpload() {
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/">
-              <Button variant="ghost" size="sm">
+              <Button variant="default" size="sm" className="bg-nexus-green hover:bg-nexus-green/90 text-white font-semibold">
                 <i className="fas fa-arrow-left mr-2"></i>
                 Back to Dashboard
               </Button>
@@ -619,6 +619,11 @@ export default function TextbookUpload() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Footer */}
+      <footer className="mt-8 text-center text-sm text-muted-foreground">
+        Created by JD Vinod
+      </footer>
     </div>
   );
 }
