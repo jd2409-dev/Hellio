@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
+import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
@@ -1152,6 +1153,288 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Complete study plan error:", error);
       res.status(500).json({ message: "Failed to complete study plan" });
+    }
+  });
+
+  // Pomodoro Timer Routes
+  
+  // Create a pomodoro session
+  app.post('/api/pomodoro/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionData = insertPomodoroSessionSchema.parse({
+        ...req.body,
+        userId,
+        startedAt: new Date(),
+        status: 'active',
+      });
+
+      const session = await storage.createPomodoroSession(sessionData);
+      res.json(session);
+    } catch (error) {
+      console.error("Create pomodoro session error:", error);
+      res.status(500).json({ message: "Failed to create pomodoro session" });
+    }
+  });
+
+  // Update a pomodoro session (pause, complete, etc.)
+  app.patch('/api/pomodoro/sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      // Set appropriate timestamps
+      if (updateData.status === 'completed') {
+        updateData.completedAt = new Date();
+      }
+
+      const session = await storage.updatePomodoroSession(sessionId, updateData);
+
+      // Award XP for completed work sessions
+      if (updateData.status === 'completed' && session.sessionType === 'work') {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (user) {
+          const xpGained = Math.floor(session.duration * 0.8); // ~0.8 XP per minute
+          await storage.upsertUser({
+            ...user,
+            xp: (user.xp || 0) + xpGained,
+            coins: (user.coins || 0) + Math.floor(xpGained / 3),
+          });
+        }
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error("Update pomodoro session error:", error);
+      res.status(500).json({ message: "Failed to update pomodoro session" });
+    }
+  });
+
+  // Get pomodoro stats
+  app.get('/api/pomodoro/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getPomodoroStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Get pomodoro stats error:", error);
+      res.status(500).json({ message: "Failed to get pomodoro stats" });
+    }
+  });
+
+  // Get weekly pomodoro stats
+  app.get('/api/pomodoro/weekly-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessions = await storage.getUserPomodoroSessions(userId);
+      
+      // Filter sessions from the last 7 days
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      const weeklySessions = sessions.filter(session => 
+        session.createdAt && new Date(session.createdAt) >= weekAgo && 
+        session.status === 'completed'
+      );
+      
+      const totalSessions = weeklySessions.length;
+      const totalFocusTime = weeklySessions
+        .filter(s => s.sessionType === 'work')
+        .reduce((acc, s) => acc + (s.actualDuration || s.duration * 60), 0);
+      
+      const hours = Math.floor(totalFocusTime / 3600);
+      const minutes = Math.floor((totalFocusTime % 3600) / 60);
+      
+      res.json({
+        totalSessions,
+        totalFocusTime: `${hours}h ${minutes}m`,
+        averageSession: totalSessions > 0 ? `${Math.floor(totalFocusTime / totalSessions / 60)}m` : '0m',
+      });
+    } catch (error) {
+      console.error("Get weekly pomodoro stats error:", error);
+      res.status(500).json({ message: "Failed to get weekly stats" });
+    }
+  });
+
+  // Get recent pomodoro sessions
+  app.get('/api/pomodoro/recent-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessions = await storage.getUserPomodoroSessions(userId);
+      res.json(sessions.slice(0, 10)); // Return last 10 sessions
+    } catch (error) {
+      console.error("Get recent pomodoro sessions error:", error);
+      res.status(500).json({ message: "Failed to get recent sessions" });
+    }
+  });
+
+  // PDF Drive Routes
+
+  // Search PDF Drive
+  app.post('/api/pdf-drive/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { query, category, limit = 20 } = req.body;
+
+      if (!query?.trim()) {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+
+      // Use Python scraper to search PDF Drive
+      const pythonProcess = spawn('python3', [
+        'server/pdf-drive-scraper.py',
+        query.trim(),
+        category || 'null',
+        limit.toString()
+      ]);
+
+      let output = '';
+      let errorOutput = '';
+
+      pythonProcess.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', async (code: number) => {
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output.trim());
+            
+            if (result.success && result.books) {
+              // Cache books in database for future reference
+              const books = [];
+              for (const bookData of result.books) {
+                try {
+                  const book = await storage.createPdfBook({
+                    title: bookData.title || '',
+                    author: bookData.author,
+                    pages: bookData.pages,
+                    year: bookData.year,
+                    size: bookData.size,
+                    extension: bookData.extension || 'pdf',
+                    preview: bookData.preview,
+                    downloadUrl: bookData.downloadUrl,
+                    imageUrl: bookData.imageUrl,
+                    category: bookData.category,
+                    language: bookData.language || 'english',
+                    searchKeywords: query.split(' ').filter(word => word.length > 2),
+                    popularity: 0,
+                  });
+                  books.push({ ...book, id: book.id });
+                } catch (dbError) {
+                  // If book already exists, just add it to results
+                  books.push({ ...bookData, id: bookData.id });
+                }
+              }
+
+              res.json({
+                success: true,
+                books,
+                total: books.length
+              });
+            } else {
+              res.json(result);
+            }
+          } catch (parseError) {
+            console.error('Parse error:', parseError);
+            console.error('Raw output:', output);
+            res.status(500).json({ 
+              success: false, 
+              message: 'Failed to parse search results',
+              error: errorOutput 
+            });
+          }
+        } else {
+          console.error('Python scraper error:', errorOutput);
+          res.status(500).json({ 
+            success: false, 
+            message: 'Search failed',
+            error: errorOutput 
+          });
+        }
+      });
+    } catch (error) {
+      console.error("PDF Drive search error:", error);
+      res.status(500).json({ message: "Failed to search PDF Drive" });
+    }
+  });
+
+  // Save book to user library
+  app.post('/api/pdf-drive/save-book', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bookId, subjectId } = req.body;
+
+      const libraryItem = await storage.addBookToUserLibrary({
+        userId,
+        bookId: parseInt(bookId),
+        subjectId: subjectId ? parseInt(subjectId) : null,
+        status: 'saved',
+        progress: 0,
+      });
+
+      res.json(libraryItem);
+    } catch (error) {
+      console.error("Save book error:", error);
+      res.status(500).json({ message: "Failed to save book" });
+    }
+  });
+
+  // Get user's PDF library
+  app.get('/api/pdf-drive/library', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const library = await storage.getUserPdfLibrary(userId);
+      res.json(library);
+    } catch (error) {
+      console.error("Get PDF library error:", error);
+      res.status(500).json({ message: "Failed to get PDF library" });
+    }
+  });
+
+  // Download book (get download URL)
+  app.post('/api/pdf-drive/download/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const bookId = parseInt(req.params.id);
+      const book = await storage.getPdfBook(bookId);
+
+      if (!book) {
+        return res.status(404).json({ message: 'Book not found' });
+      }
+
+      // For now, return the stored download URL
+      // In a more advanced implementation, this could refresh the URL via scraping
+      res.json({
+        success: true,
+        downloadUrl: book.downloadUrl,
+      });
+    } catch (error) {
+      console.error("Download book error:", error);
+      res.status(500).json({ message: "Failed to get download URL" });
+    }
+  });
+
+  // Get PDF Drive stats
+  app.get('/api/pdf-drive/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const library = await storage.getUserPdfLibrary(userId);
+      
+      const stats = {
+        totalBooks: library.length,
+        readingBooks: library.filter(item => item.status === 'reading').length,
+        completedBooks: library.filter(item => item.status === 'completed').length,
+        downloadedBooks: library.filter(item => item.status === 'downloaded').length,
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Get PDF Drive stats error:", error);
+      res.status(500).json({ message: "Failed to get PDF Drive stats" });
     }
   });
 

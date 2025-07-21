@@ -12,6 +12,9 @@ import {
   meetingMessages,
   studyPlans,
   studyPlanReminders,
+  pomodoroSessions,
+  pdfDriveBooks,
+  userPdfLibrary,
   type User,
   type UpsertUser,
   type Subject,
@@ -35,6 +38,12 @@ import {
   type InsertStudyPlan,
   type StudyPlanReminder,
   type InsertStudyPlanReminder,
+  type PomodoroSession,
+  type InsertPomodoroSession,
+  type PdfDriveBook,
+  type InsertPdfDriveBook,
+  type UserPdfLibrary,
+  type InsertUserPdfLibrary,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -97,6 +106,21 @@ export interface IStorage {
   // Study Plan Reminder operations
   createStudyPlanReminder(reminder: InsertStudyPlanReminder): Promise<StudyPlanReminder>;
   getStudyPlanReminders(studyPlanId: number): Promise<StudyPlanReminder[]>;
+  
+  // Pomodoro Session operations
+  createPomodoroSession(session: InsertPomodoroSession): Promise<PomodoroSession>;
+  getUserPomodoroSessions(userId: string): Promise<PomodoroSession[]>;
+  getPomodoroSession(id: number): Promise<PomodoroSession | undefined>;
+  updatePomodoroSession(id: number, data: Partial<InsertPomodoroSession>): Promise<PomodoroSession>;
+  getPomodoroStats(userId: string): Promise<any>;
+  
+  // PDF Drive operations
+  createPdfBook(book: InsertPdfDriveBook): Promise<PdfDriveBook>;
+  getPdfBook(id: number): Promise<PdfDriveBook | undefined>;
+  searchPdfBooks(query: string): Promise<PdfDriveBook[]>;
+  addBookToUserLibrary(data: InsertUserPdfLibrary): Promise<UserPdfLibrary>;
+  getUserPdfLibrary(userId: string): Promise<UserPdfLibrary[]>;
+  updateUserPdfLibraryItem(id: number, data: Partial<InsertUserPdfLibrary>): Promise<UserPdfLibrary>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -351,6 +375,117 @@ export class DatabaseStorage implements IStorage {
 
   async getStudyPlanReminders(studyPlanId: number): Promise<StudyPlanReminder[]> {
     return db.select().from(studyPlanReminders).where(eq(studyPlanReminders.studyPlanId, studyPlanId));
+  }
+
+  // Pomodoro Session operations
+  async createPomodoroSession(session: InsertPomodoroSession): Promise<PomodoroSession> {
+    const [created] = await db.insert(pomodoroSessions).values(session).returning();
+    return created;
+  }
+
+  async getUserPomodoroSessions(userId: string): Promise<PomodoroSession[]> {
+    return db.select().from(pomodoroSessions)
+      .where(eq(pomodoroSessions.userId, userId))
+      .orderBy(desc(pomodoroSessions.createdAt));
+  }
+
+  async getPomodoroSession(id: number): Promise<PomodoroSession | undefined> {
+    const [session] = await db.select().from(pomodoroSessions).where(eq(pomodoroSessions.id, id));
+    return session;
+  }
+
+  async updatePomodoroSession(id: number, data: Partial<InsertPomodoroSession>): Promise<PomodoroSession> {
+    const [updated] = await db.update(pomodoroSessions)
+      .set(data)
+      .where(eq(pomodoroSessions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getPomodoroStats(userId: string): Promise<any> {
+    const sessions = await db.select().from(pomodoroSessions)
+      .where(and(eq(pomodoroSessions.userId, userId), eq(pomodoroSessions.status, 'completed')));
+    
+    const totalSessions = sessions.length;
+    const totalFocusTime = sessions
+      .filter(s => s.sessionType === 'work')
+      .reduce((acc, s) => acc + (s.actualDuration || s.duration * 60), 0);
+    
+    return {
+      totalSessions,
+      totalFocusTime: Math.floor(totalFocusTime / 60), // in minutes
+      averageSession: totalSessions > 0 ? Math.floor(totalFocusTime / totalSessions / 60) : 0,
+    };
+  }
+
+  // PDF Drive operations
+  async createPdfBook(book: InsertPdfDriveBook): Promise<PdfDriveBook> {
+    const [created] = await db.insert(pdfDriveBooks).values(book).returning();
+    return created;
+  }
+
+  async getPdfBook(id: number): Promise<PdfDriveBook | undefined> {
+    const [book] = await db.select().from(pdfDriveBooks).where(eq(pdfDriveBooks.id, id));
+    return book;
+  }
+
+  async searchPdfBooks(query: string): Promise<PdfDriveBook[]> {
+    // This will be handled by the Python scraper, so this method mainly handles cached results
+    return db.select().from(pdfDriveBooks)
+      .where(eq(pdfDriveBooks.title, query)) // Simple search for now
+      .limit(20);
+  }
+
+  async addBookToUserLibrary(data: InsertUserPdfLibrary): Promise<UserPdfLibrary> {
+    const [added] = await db.insert(userPdfLibrary).values(data).returning();
+    return added;
+  }
+
+  async getUserPdfLibrary(userId: string): Promise<UserPdfLibrary[]> {
+    return db.select({
+      id: userPdfLibrary.id,
+      userId: userPdfLibrary.userId,
+      bookId: userPdfLibrary.bookId,
+      subjectId: userPdfLibrary.subjectId,
+      status: userPdfLibrary.status,
+      progress: userPdfLibrary.progress,
+      notes: userPdfLibrary.notes,
+      rating: userPdfLibrary.rating,
+      addedAt: userPdfLibrary.addedAt,
+      lastAccessedAt: userPdfLibrary.lastAccessedAt,
+      book: {
+        id: pdfDriveBooks.id,
+        title: pdfDriveBooks.title,
+        author: pdfDriveBooks.author,
+        pages: pdfDriveBooks.pages,
+        year: pdfDriveBooks.year,
+        size: pdfDriveBooks.size,
+        extension: pdfDriveBooks.extension,
+        preview: pdfDriveBooks.preview,
+        downloadUrl: pdfDriveBooks.downloadUrl,
+        imageUrl: pdfDriveBooks.imageUrl,
+        category: pdfDriveBooks.category,
+        language: pdfDriveBooks.language,
+      },
+      subject: {
+        id: subjects.id,
+        name: subjects.name,
+        color: subjects.color,
+      }
+    })
+    .from(userPdfLibrary)
+    .leftJoin(pdfDriveBooks, eq(userPdfLibrary.bookId, pdfDriveBooks.id))
+    .leftJoin(subjects, eq(userPdfLibrary.subjectId, subjects.id))
+    .where(eq(userPdfLibrary.userId, userId))
+    .orderBy(desc(userPdfLibrary.addedAt));
+  }
+
+  async updateUserPdfLibraryItem(id: number, data: Partial<InsertUserPdfLibrary>): Promise<UserPdfLibrary> {
+    const [updated] = await db.update(userPdfLibrary)
+      .set(data)
+      .where(eq(userPdfLibrary.id, id))
+      .returning();
+    return updated;
   }
 }
 

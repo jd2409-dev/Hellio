@@ -21,7 +21,10 @@ import {
   BarChart3,
   Users,
   LogOut,
-  Video
+  Video,
+  Timer,
+  FileText,
+  Download
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -189,7 +192,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Action Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-6 mb-12">
           {/* AI Tutor */}
           <Link href="/ai-tutor">
             <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-emerald-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
@@ -291,6 +294,65 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </Link>
+        </div>
+
+        {/* Additional Features Section */}
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Productivity Tools</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+
+            {/* Pomodoro Timer */}
+            <Link href="/pomodoro">
+              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-red-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Timer className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">Pomodoro Timer</h3>
+                  <p className="text-slate-400 mb-6">Focus sessions with productive work intervals and breaks</p>
+                  <Button className="bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 w-full">
+                    <Timer className="mr-2 h-4 w-4" />
+                    Start Timer
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* PDF Drive */}
+            <Link href="/pdf-drive">
+              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-teal-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <FileText className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">PDF Drive</h3>
+                  <p className="text-slate-400 mb-6">Search and access millions of educational PDF books</p>
+                  <Button className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Browse Books
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Analytics */}
+            <Link href="/analytics">
+              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-yellow-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <BarChart3 className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">Analytics</h3>
+                  <p className="text-slate-400 mb-6">Track your learning progress and performance insights</p>
+                  <Button className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600 w-full">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    View Stats
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+          </div>
         </div>
 
         {/* Subject Modules */}

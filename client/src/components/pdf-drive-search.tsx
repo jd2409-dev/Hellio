@@ -1,0 +1,409 @@
+import { useState } from 'react';
+import { Search, Download, BookOpen, Eye, Heart, Star, Filter, Loader2, Book } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+
+interface PdfBook {
+  id: number;
+  title: string;
+  author?: string;
+  pages?: number;
+  year?: string;
+  size?: string;
+  extension?: string;
+  preview?: string;
+  downloadUrl?: string;
+  imageUrl?: string;
+  category?: string;
+  language?: string;
+  popularity?: number;
+}
+
+interface Subject {
+  id: number;
+  name: string;
+  color: string;
+}
+
+export default function PdfDriveSearch() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCategory, setSearchCategory] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<PdfBook[]>([]);
+
+  // Fetch subjects for categorization
+  const { data: subjects = [] } = useQuery<Subject[]>({
+    queryKey: ['/api/subjects'],
+  });
+
+  // Fetch user's saved books
+  const { data: savedBooks = [] } = useQuery({
+    queryKey: ['/api/pdf-drive/library'],
+  });
+
+  // Search PDF Drive
+  const searchMutation = useMutation({
+    mutationFn: async (data: { query: string; category?: string; limit?: number }) => {
+      setIsSearching(true);
+      const response = await apiRequest('/api/pdf-drive/search', {
+        method: 'POST',
+        body: data,
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      setSearchResults(data.books || []);
+      setIsSearching(false);
+      toast({
+        title: 'Search Complete',
+        description: `Found ${data.books?.length || 0} books matching your search.`,
+      });
+    },
+    onError: (error) => {
+      setIsSearching(false);
+      console.error('Search error:', error);
+      toast({
+        title: 'Search Failed',
+        description: 'Unable to search PDF Drive. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Save book to library
+  const saveBookMutation = useMutation({
+    mutationFn: async (data: { bookId: number; subjectId?: number }) => {
+      return apiRequest('/api/pdf-drive/save-book', {
+        method: 'POST',
+        body: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pdf-drive/library'] });
+      toast({
+        title: 'Book Saved',
+        description: 'Book added to your library successfully!',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Save Failed',
+        description: 'Unable to save book. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Download book
+  const downloadBookMutation = useMutation({
+    mutationFn: async (bookId: number) => {
+      return apiRequest(`/api/pdf-drive/download/${bookId}`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data) => {
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, '_blank');
+        toast({
+          title: 'Download Started',
+          description: 'Your book download should begin shortly.',
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: 'Download Failed',
+        description: 'Unable to download book. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    
+    searchMutation.mutate({
+      query: searchQuery.trim(),
+      category: searchCategory || undefined,
+      limit: 20,
+    });
+  };
+
+  const handleSaveBook = (book: PdfBook, subjectId?: number) => {
+    saveBookMutation.mutate({
+      bookId: book.id,
+      subjectId,
+    });
+  };
+
+  const handleDownloadBook = (bookId: number) => {
+    downloadBookMutation.mutate(bookId);
+  };
+
+  const isBookSaved = (bookId: number) => {
+    return savedBooks.some((saved: any) => saved.bookId === bookId);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Search Form */}
+      <Card className="glass-effect border-nexus-green/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-nexus-green">
+            <BookOpen className="w-5 h-5" />
+            Search PDF Drive
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search for books, authors, topics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="glass-effect border-nexus-green/20 focus:border-nexus-green"
+                />
+              </div>
+              <Select value={searchCategory} onValueChange={setSearchCategory}>
+                <SelectTrigger className="w-48 glass-effect border-nexus-green/20">
+                  <SelectValue placeholder="Category (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="science">Science</SelectItem>
+                  <SelectItem value="mathematics">Mathematics</SelectItem>
+                  <SelectItem value="engineering">Engineering</SelectItem>
+                  <SelectItem value="physics">Physics</SelectItem>
+                  <SelectItem value="chemistry">Chemistry</SelectItem>
+                  <SelectItem value="biology">Biology</SelectItem>
+                  <SelectItem value="computer">Computer Science</SelectItem>
+                  <SelectItem value="programming">Programming</SelectItem>
+                  <SelectItem value="history">History</SelectItem>
+                  <SelectItem value="literature">Literature</SelectItem>
+                  <SelectItem value="philosophy">Philosophy</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="economics">Economics</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="submit"
+                disabled={isSearching || !searchQuery.trim()}
+                className="bg-nexus-green hover:bg-nexus-green/80 text-nexus-black font-semibold px-6"
+              >
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Search className="w-4 h-4 mr-2" />
+                )}
+                Search
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Search Results */}
+      {searchResults.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-nexus-green">
+              Search Results ({searchResults.length})
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="w-4 h-4" />
+              Filter by subject coming soon
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {searchResults.map((book) => (
+              <Card key={book.id} className="glass-effect border-nexus-green/20 hover:border-nexus-green/40 transition-colors">
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    {/* Book Cover & Title */}
+                    <div className="flex gap-3">
+                      <div className="w-16 h-20 bg-nexus-green/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        {book.imageUrl ? (
+                          <img 
+                            src={book.imageUrl} 
+                            alt={book.title}
+                            className="w-full h-full object-cover rounded-lg"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <Book className="w-8 h-8 text-nexus-green" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-nexus-green text-sm line-clamp-2 mb-1">
+                          {book.title}
+                        </h3>
+                        {book.author && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            by {book.author}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {book.pages && (
+                            <Badge variant="outline" className="text-xs px-2 py-0">
+                              {book.pages}p
+                            </Badge>
+                          )}
+                          {book.size && (
+                            <Badge variant="outline" className="text-xs px-2 py-0">
+                              {book.size}
+                            </Badge>
+                          )}
+                          {book.year && (
+                            <Badge variant="outline" className="text-xs px-2 py-0">
+                              {book.year}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    {book.preview && (
+                      <p className="text-xs text-muted-foreground line-clamp-3">
+                        {book.preview}
+                      </p>
+                    )}
+
+                    <Separator className="border-nexus-green/10" />
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadBook(book.id)}
+                        disabled={downloadBookMutation.isPending}
+                        className="flex-1 text-xs border-nexus-green/20 hover:bg-nexus-green/10"
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Download
+                      </Button>
+                      
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSaveBook(book)}
+                        disabled={saveBookMutation.isPending || isBookSaved(book.id)}
+                        className="border-nexus-gold/20 hover:bg-nexus-gold/10 text-xs"
+                      >
+                        <Heart className={`w-3 h-3 mr-1 ${isBookSaved(book.id) ? 'fill-nexus-gold text-nexus-gold' : ''}`} />
+                        {isBookSaved(book.id) ? 'Saved' : 'Save'}
+                      </Button>
+                      
+                      {book.preview && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-nexus-green p-2"
+                          title="Preview"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Subject Assignment for Saved Books */}
+                    {isBookSaved(book.id) && (
+                      <Select onValueChange={(value) => handleSaveBook(book, parseInt(value))}>
+                        <SelectTrigger className="h-8 text-xs glass-effect border-nexus-green/20">
+                          <SelectValue placeholder="Assign to subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem key={subject.id} value={subject.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: subject.color }}
+                                />
+                                {subject.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isSearching && searchResults.length === 0 && searchQuery && (
+        <Card className="glass-effect border-nexus-green/20">
+          <CardContent className="p-8 text-center">
+            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-nexus-green mb-2">
+              No books found
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              Try adjusting your search terms or browse different categories.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setSearchQuery('')}
+              className="border-nexus-green/20 hover:bg-nexus-green/10"
+            >
+              Clear search
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Initial State */}
+      {!searchQuery && (
+        <Card className="glass-effect border-nexus-green/20">
+          <CardContent className="p-8 text-center">
+            <BookOpen className="w-12 h-12 text-nexus-green mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-nexus-green mb-2">
+              Discover Educational Books
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              Search through millions of free educational PDFs from PDF Drive. 
+              Find textbooks, research papers, and study materials for any subject.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['Mathematics', 'Physics', 'Programming', 'Chemistry', 'Biology'].map((category) => (
+                <Button
+                  key={category}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery(category);
+                    setSearchCategory(category.toLowerCase());
+                  }}
+                  className="border-nexus-green/20 hover:bg-nexus-green/10 text-xs"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

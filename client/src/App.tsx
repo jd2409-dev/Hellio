@@ -14,6 +14,8 @@ import SubjectDetail from "@/pages/subject-detail";
 import Analytics from "@/pages/analytics";
 import Reflection from "@/pages/reflection";
 import StudyPlanner from "@/pages/study-planner";
+import PomodoroPage from "@/pages/pomodoro";
+import PdfDrivePage from "@/pages/pdf-drive";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -45,6 +47,8 @@ function Router() {
           <Route path="/analytics" component={Analytics} />
           <Route path="/reflection" component={Reflection} />
           <Route path="/study-planner" component={StudyPlanner} />
+          <Route path="/pomodoro" component={PomodoroPage} />
+          <Route path="/pdf-drive" component={PdfDrivePage} />
         </>
       )}
       <Route component={NotFound} />
