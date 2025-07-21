@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Download, BookOpen, Eye, Heart, Star, Filter, Loader2, Book } from 'lucide-react';
+import { Search, Download, BookOpen, Eye, Heart, Star, Filter, Loader2, Book, Info, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,9 @@ export default function PdfDriveSearch() {
   const [searchCategory, setSearchCategory] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<PdfBook[]>([]);
+  const [selectedBook, setSelectedBook] = useState<PdfBook | null>(null);
+  const [bookMetadata, setBookMetadata] = useState<any>(null);
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
 
   // Fetch subjects for categorization
   const { data: subjects = [] } = useQuery<Subject[]>({
@@ -133,6 +136,52 @@ export default function PdfDriveSearch() {
       });
     },
   });
+
+  // Fetch detailed metadata for a book (using your base code concept)
+  const fetchBookMetadata = async (identifier: string) => {
+    setLoadingMetadata(true);
+    try {
+      const url = `https://archive.org/metadata/${identifier}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      const metadata = {
+        title: data.metadata?.title || "Untitled",
+        mediatype: data.metadata?.mediatype || "Unknown",
+        files: data.files?.filter((f: any) => 
+          f.format === 'Text PDF' || f.format === 'EPUB' || f.format === 'DjVuTXT' || f.format === 'Abbyy GZ'
+        ) || [],
+        itemSize: data.item_size,
+        server: data.server,
+        collection: data.metadata?.collection,
+        creator: data.metadata?.creator,
+        date: data.metadata?.date,
+        description: data.metadata?.description,
+        language: data.metadata?.language,
+        subject: data.metadata?.subject,
+        pages: data.metadata?.pages,
+        downloads: data.metadata?.downloads || 0
+      };
+      
+      setBookMetadata(metadata);
+    } catch (error) {
+      console.error('Failed to fetch metadata:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load book details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingMetadata(false);
+    }
+  };
+
+  const handleViewBookDetails = (book: PdfBook) => {
+    setSelectedBook(book);
+    if (book.identifier) {
+      fetchBookMetadata(book.identifier);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +369,16 @@ export default function PdfDriveSearch() {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => handleViewBookDetails(book)}
+                        className="text-xs border-nexus-green/20 hover:bg-nexus-green/10"
+                      >
+                        <Info className="w-3 h-3 mr-1" />
+                        Details
+                      </Button>
+                      
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleDownloadBook(book)}
                         disabled={downloadBookMutation.isPending}
                         className="flex-1 text-xs border-nexus-green/20 hover:bg-nexus-green/10"
@@ -454,6 +513,133 @@ export default function PdfDriveSearch() {
                 </Button>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Book Details Modal - Based on your metadata API code */}
+      {selectedBook && (
+        <Card className="fixed inset-4 z-50 overflow-auto glass-effect border-nexus-green/20 bg-background/95 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-nexus-green">Book Details</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedBook(null);
+                setBookMetadata(null);
+              }}
+              className="border-nexus-green/20 hover:bg-nexus-green/10"
+            >
+              ✕
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loadingMetadata ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-nexus-green" />
+                <span className="ml-2 text-muted-foreground">Loading book details...</span>
+              </div>
+            ) : bookMetadata ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-nexus-green mb-2">{bookMetadata.title}</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <strong>Author:</strong> {Array.isArray(bookMetadata.creator) ? bookMetadata.creator.join(', ') : bookMetadata.creator || 'Unknown'}
+                    </div>
+                    <div>
+                      <strong>Type:</strong> {bookMetadata.mediatype}
+                    </div>
+                    <div>
+                      <strong>Size:</strong> {bookMetadata.itemSize ? `${(bookMetadata.itemSize / 1024 / 1024).toFixed(1)} MB` : 'Unknown'}
+                    </div>
+                    <div>
+                      <strong>Date:</strong> {bookMetadata.date || 'Unknown'}
+                    </div>
+                    <div>
+                      <strong>Language:</strong> {Array.isArray(bookMetadata.language) ? bookMetadata.language.join(', ') : bookMetadata.language || 'Unknown'}
+                    </div>
+                    <div>
+                      <strong>Server:</strong> {bookMetadata.server}
+                    </div>
+                  </div>
+                </div>
+
+                {bookMetadata.description && (
+                  <div>
+                    <h3 className="font-semibold text-nexus-green mb-2">Description</h3>
+                    <p className="text-muted-foreground text-sm">
+                      {Array.isArray(bookMetadata.description) ? bookMetadata.description.join(' ') : bookMetadata.description}
+                    </p>
+                  </div>
+                )}
+
+                {bookMetadata.subject && (
+                  <div>
+                    <h3 className="font-semibold text-nexus-green mb-2">Subjects</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(Array.isArray(bookMetadata.subject) ? bookMetadata.subject : [bookMetadata.subject]).map((subject: string, index: number) => (
+                        <Badge key={index} variant="outline" className="border-nexus-green/20 text-nexus-green">
+                          {subject}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {bookMetadata.collection && (
+                  <div>
+                    <h3 className="font-semibold text-nexus-green mb-2">Collections</h3>
+                    <div className="text-sm text-muted-foreground">
+                      {Array.isArray(bookMetadata.collection) ? bookMetadata.collection.join(', ') : bookMetadata.collection}
+                    </div>
+                  </div>
+                )}
+
+                {bookMetadata.files && bookMetadata.files.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-nexus-green mb-2">Available Formats</h3>
+                    <div className="space-y-2">
+                      {bookMetadata.files.map((file: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded border border-nexus-green/10">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-nexus-green" />
+                            <span className="text-sm">{file.name}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {file.format}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={() => handleDownloadBook(selectedBook)}
+                    className="bg-nexus-green hover:bg-nexus-green/90 text-white"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View on Archive.org
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSaveBook(selectedBook)}
+                    className="border-nexus-green/20 hover:bg-nexus-green/10"
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Save to Library
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Unable to load book details</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
