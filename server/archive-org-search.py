@@ -81,11 +81,11 @@ def search_archive_org_books(query, category=None, limit=20):
         # Combine all parts with AND
         search_query = ' AND '.join(search_parts)
         
-        # Use the regular search API  
+        # Use the advanced search API with your base code pattern
         url = "https://archive.org/advancedsearch.php"
         params = {
             'q': search_query,
-            'fl': 'identifier,title,creator,date,subject,description,downloads,item_size,format,language',
+            'fl[]': ['identifier', 'title', 'creator', 'year', 'description', 'subject', 'downloads', 'item_size', 'format', 'language', 'date'],
             'sort': 'downloads desc',
             'rows': min(limit, 100),
             'output': 'json'

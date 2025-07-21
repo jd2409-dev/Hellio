@@ -137,7 +137,7 @@ export default function PdfDriveSearch() {
     },
   });
 
-  // Fetch detailed metadata for a book (using your base code concept)
+  // 📦 METADATA FETCH: Get full metadata for selected item (based on your code pattern)
   const fetchBookMetadata = async (identifier: string) => {
     setLoadingMetadata(true);
     try {
@@ -145,18 +145,24 @@ export default function PdfDriveSearch() {
       const response = await fetch(url);
       const data = await response.json();
       
+      // Using your base code structure with enhanced data extraction
       const metadata = {
         title: data.metadata?.title || "Untitled",
+        author: Array.isArray(data.metadata?.creator) 
+          ? data.metadata.creator.join(", ") 
+          : data.metadata?.creator || "Unknown",
+        description: Array.isArray(data.metadata?.description)
+          ? data.metadata.description.join(" ")
+          : data.metadata?.description || "No description available.",
         mediatype: data.metadata?.mediatype || "Unknown",
-        files: data.files?.filter((f: any) => 
-          f.format === 'Text PDF' || f.format === 'EPUB' || f.format === 'DjVuTXT' || f.format === 'Abbyy GZ'
-        ) || [],
+        collection: Array.isArray(data.metadata?.collection) 
+          ? data.metadata.collection.join(", ") 
+          : data.metadata?.collection || "None",
+        files: data.files || [],
+        // Additional metadata for enhanced display
         itemSize: data.item_size,
         server: data.server,
-        collection: data.metadata?.collection,
-        creator: data.metadata?.creator,
         date: data.metadata?.date,
-        description: data.metadata?.description,
         language: data.metadata?.language,
         subject: data.metadata?.subject,
         pages: data.metadata?.pages,
@@ -546,19 +552,19 @@ export default function PdfDriveSearch() {
                   <h2 className="text-xl font-bold text-nexus-green mb-2">{bookMetadata.title}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <strong>Author:</strong> {Array.isArray(bookMetadata.creator) ? bookMetadata.creator.join(', ') : bookMetadata.creator || 'Unknown'}
+                      <strong>Author:</strong> {bookMetadata.author}
                     </div>
                     <div>
                       <strong>Type:</strong> {bookMetadata.mediatype}
                     </div>
                     <div>
-                      <strong>Size:</strong> {bookMetadata.itemSize ? `${(bookMetadata.itemSize / 1024 / 1024).toFixed(1)} MB` : 'Unknown'}
+                      <strong>Collection:</strong> {bookMetadata.collection}
                     </div>
                     <div>
                       <strong>Date:</strong> {bookMetadata.date || 'Unknown'}
                     </div>
                     <div>
-                      <strong>Language:</strong> {Array.isArray(bookMetadata.language) ? bookMetadata.language.join(', ') : bookMetadata.language || 'Unknown'}
+                      <strong>Size:</strong> {bookMetadata.itemSize ? `${(bookMetadata.itemSize / 1024 / 1024).toFixed(1)} MB` : 'Unknown'}
                     </div>
                     <div>
                       <strong>Server:</strong> {bookMetadata.server}
@@ -570,7 +576,7 @@ export default function PdfDriveSearch() {
                   <div>
                     <h3 className="font-semibold text-nexus-green mb-2">Description</h3>
                     <p className="text-muted-foreground text-sm">
-                      {Array.isArray(bookMetadata.description) ? bookMetadata.description.join(' ') : bookMetadata.description}
+                      {bookMetadata.description}
                     </p>
                   </div>
                 )}
