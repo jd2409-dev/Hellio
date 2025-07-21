@@ -28,17 +28,18 @@ def search_archive_org_books(query, category=None, limit=20):
                     f'subject:"{full_query}"'
                 ])
             
-            # Strategy 2: Individual words with wildcards for better keyword matching
+            # Strategy 2: SMART SEARCH - Expanded field logic (based on your pattern)
+            fields = ["title", "subject", "creator", "description"]
             for word in query_words:
-                search_strategies.extend([
-                    f'title:*{word}*^3',      # Wildcard title matches
-                    f'title:{word}^2',        # Exact title matches  
-                    f'subject:*{word}*^2',    # Wildcard subject matches
-                    f'subject:{word}',        # Exact subject matches
-                    f'creator:*{word}*',      # Creator wildcard
-                    f'description:*{word}*',  # Description wildcard
-                    f'{word}'                 # General text search
-                ])
+                # Your base pattern: field:(keyword) with enhancements
+                field_queries = []
+                for field in fields:
+                    field_queries.extend([
+                        f'{field}:({word})',       # Your exact base pattern
+                        f'{field}:*{word}*',       # Wildcard for partial matches
+                        f'{field}:"{word}"'        # Exact phrase matching
+                    ])
+                search_strategies.extend(field_queries)
             
             # Strategy 3: For multi-word queries, try partial combinations
             if len(query_words) > 1:
