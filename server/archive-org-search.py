@@ -77,27 +77,13 @@ def search_archive_org_books(query, category=None, limit=20):
                 category_terms = [f'subject:{term}' for term in category_map[category]]
                 search_parts.append(f'({" OR ".join(category_terms)})')
         
-        # Always filter for books/texts and exclude non-educational content
+        # Simplified filtering for better results
         search_parts.append('mediatype:texts')
         
-        # Include educational collections
-        educational_collections = [
-            'collection:opensource',
-            'collection:books', 
-            'collection:internetarchivebooks',
-            'collection:library_of_congress',
-            'collection:inlibrary'
-        ]
-        search_parts.append(f'({" OR ".join(educational_collections)})')
-        
-        # Exclude non-educational content
+        # Basic exclusions only
         exclusions = [
             '-collection:softwarehistory',   # Game manuals
             '-collection:vgmuseum',          # Video games  
-            '-collection:gamemanuals',       # Game guides
-            '-subject:skyrim',               # Game mods
-            '-subject:fallout',              # Game mods
-            '-subject:gaming'                # Gaming content
         ]
         search_parts.extend(exclusions)
         
