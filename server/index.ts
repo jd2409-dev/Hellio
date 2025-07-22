@@ -51,6 +51,19 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Serve story files with correct MIME types BEFORE vite setup
+  app.use('/stories', express.static(path.join(__dirname, 'public/stories'), {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.mp4')) {
+        res.setHeader('Content-Type', 'video/mp4');
+      } else if (path.endsWith('.mp3')) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+      } else if (path.endsWith('.png')) {
+        res.setHeader('Content-Type', 'image/png');
+      }
+    }
+  }));
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
@@ -59,9 +72,6 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
-
-  // Serve story files
-  app.use('/stories', express.static(path.join(__dirname, 'public/stories')));
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
