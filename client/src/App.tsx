@@ -19,6 +19,7 @@ import PdfDrivePage from "@/pages/pdf-drive";
 import TimeCapsule from "@/pages/time-capsule";
 import PeerChallenges from "@/pages/peer-challenges";
 import ChallengePlay from "@/pages/challenge-play";
+import Storytelling from "@/pages/storytelling";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -55,6 +56,7 @@ function Router() {
           <Route path="/time-capsule" component={TimeCapsule} />
           <Route path="/peer-challenges" component={PeerChallenges} />
           <Route path="/peer-challenges/:challengeId" component={ChallengePlay} />
+          <Route path="/storytelling" component={Storytelling} />
         </>
       )}
       <Route component={NotFound} />

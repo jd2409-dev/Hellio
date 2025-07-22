@@ -59,9 +59,15 @@ import {
   peerChallenges,
   challengeAttempts,
   challengeLeaderboards,
+  type StoryCreation,
+  type InsertStoryCreation,
+  type StoryLike,
+  type InsertStoryLike,
+  storyCreations,
+  storyLikes,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, lte } from "drizzle-orm";
+import { eq, desc, and, lte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -165,6 +171,19 @@ export interface IStorage {
   // Challenge Leaderboard operations
   updateLeaderboard(leaderboard: InsertChallengeLeaderboard): Promise<ChallengeLeaderboard>;
   getChallengeLeaderboard(challengeId: string, limit?: number): Promise<ChallengeLeaderboard[]>;
+
+  // Story Creation operations
+  createStory(story: InsertStoryCreation): Promise<StoryCreation>;
+  getUserStories(userId: string): Promise<StoryCreation[]>;
+  getPublicStories(limit?: number): Promise<StoryCreation[]>;
+  getStoryById(id: number): Promise<StoryCreation | undefined>;
+  updateStory(id: number, data: Partial<InsertStoryCreation>): Promise<StoryCreation>;
+  deleteStory(id: number): Promise<void>;
+  
+  // Story Like operations
+  likeStory(storyId: number, userId: string): Promise<StoryLike>;
+  unlikeStory(storyId: number, userId: string): Promise<void>;
+  getStoryLikes(storyId: number): Promise<StoryLike[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -682,7 +701,7 @@ export class DatabaseStorage implements IStorage {
           .set({
             bestScore: leaderboardData.bestScore,
             bestTime: leaderboardData.bestTime,
-            attemptCount: existing.attemptCount + 1,
+            attemptCount: (existing.attemptCount || 0) + 1,
             lastAttemptAt: new Date(),
           })
           .where(eq(challengeLeaderboards.id, existing.id))
@@ -692,7 +711,7 @@ export class DatabaseStorage implements IStorage {
         // Just update attempt count
         const [updated] = await db.update(challengeLeaderboards)
           .set({
-            attemptCount: existing.attemptCount + 1,
+            attemptCount: (existing.attemptCount || 0) + 1,
             lastAttemptAt: new Date(),
           })
           .where(eq(challengeLeaderboards.id, existing.id))
@@ -713,6 +732,82 @@ export class DatabaseStorage implements IStorage {
       .where(eq(challengeLeaderboards.challengeId, challengeId))
       .orderBy(desc(challengeLeaderboards.bestScore), challengeLeaderboards.bestTime)
       .limit(limit);
+  }
+
+  // Story Creation operations
+  async createStory(story: InsertStoryCreation): Promise<StoryCreation> {
+    const [newStory] = await db.insert(storyCreations).values(story).returning();
+    return newStory;
+  }
+
+  async getUserStories(userId: string): Promise<StoryCreation[]> {
+    return await db.select().from(storyCreations)
+      .where(eq(storyCreations.userId, userId))
+      .orderBy(desc(storyCreations.createdAt));
+  }
+
+  async getPublicStories(limit: number = 20): Promise<StoryCreation[]> {
+    return await db.select().from(storyCreations)
+      .where(eq(storyCreations.isPublic, true))
+      .orderBy(desc(storyCreations.likesCount), desc(storyCreations.createdAt))
+      .limit(limit);
+  }
+
+  async getStoryById(id: number): Promise<StoryCreation | undefined> {
+    const [story] = await db.select().from(storyCreations)
+      .where(eq(storyCreations.id, id));
+    return story;
+  }
+
+  async updateStory(id: number, data: Partial<InsertStoryCreation>): Promise<StoryCreation> {
+    const [updated] = await db.update(storyCreations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(storyCreations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStory(id: number): Promise<void> {
+    await db.delete(storyCreations).where(eq(storyCreations.id, id));
+  }
+
+  // Story Like operations
+  async likeStory(storyId: number, userId: string): Promise<StoryLike> {
+    // Check if already liked
+    const [existing] = await db.select().from(storyLikes)
+      .where(and(eq(storyLikes.storyId, storyId), eq(storyLikes.userId, userId)));
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create new like
+    const [newLike] = await db.insert(storyLikes)
+      .values({ storyId, userId })
+      .returning();
+
+    // Update likes count
+    await db.update(storyCreations)
+      .set({ likesCount: sql`${storyCreations.likesCount} + 1` })
+      .where(eq(storyCreations.id, storyId));
+
+    return newLike;
+  }
+
+  async unlikeStory(storyId: number, userId: string): Promise<void> {
+    const deleted = await db.delete(storyLikes)
+      .where(and(eq(storyLikes.storyId, storyId), eq(storyLikes.userId, userId)));
+
+    // Update likes count
+    await db.update(storyCreations)
+      .set({ likesCount: sql`${storyCreations.likesCount} - 1` })
+      .where(eq(storyCreations.id, storyId));
+  }
+
+  async getStoryLikes(storyId: number): Promise<StoryLike[]> {
+    return await db.select().from(storyLikes)
+      .where(eq(storyLikes.storyId, storyId))
+      .orderBy(desc(storyLikes.createdAt));
   }
 }
 

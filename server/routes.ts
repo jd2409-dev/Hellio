@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
-import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema } from "@shared/schema";
+import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema, insertStoryCreationSchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { generateEducationalStory, suggestStoryTitle } from "./services/storytelling";
 import { GoogleGenAI } from "@google/genai";
 import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
 import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
@@ -1799,6 +1800,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Search challenges error:", error);
       res.status(500).json({ message: "Failed to search challenges" });
+    }
+  });
+
+  // AI Educational Storytelling Routes
+  
+  // Generate story from concept
+  app.post('/api/stories/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const { concept, subject, difficulty } = req.body;
+      
+      if (!concept) {
+        return res.status(400).json({ message: 'Concept is required' });
+      }
+
+      // Generate the story scenes
+      const scenes = await generateEducationalStory(concept, subject, difficulty);
+      
+      // Generate a suggested title
+      const suggestedTitle = await suggestStoryTitle(concept);
+      
+      res.json({
+        scenes,
+        suggestedTitle,
+        concept,
+        subject,
+        difficulty,
+      });
+    } catch (error) {
+      console.error("Generate story error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate story",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Save generated story
+  app.post('/api/stories', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const storyData = insertStoryCreationSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const story = await storage.createStory(storyData);
+      
+      // Award XP for creating story
+      await storage.upsertUser({
+        ...user,
+        xp: (user.xp || 0) + 20,
+        coins: (user.coins || 0) + 10,
+      });
+
+      res.json({ 
+        ...story,
+        xpEarned: 20,
+        coinsEarned: 10 
+      });
+    } catch (error) {
+      console.error("Save story error:", error);
+      res.status(500).json({ message: "Failed to save story" });
+    }
+  });
+
+  // Get user's stories
+  app.get('/api/stories/my-stories', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stories = await storage.getUserStories(userId);
+      res.json(stories);
+    } catch (error) {
+      console.error("Get user stories error:", error);
+      res.status(500).json({ message: "Failed to get user stories" });
+    }
+  });
+
+  // Get public stories
+  app.get('/api/stories/public', isAuthenticated, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const stories = await storage.getPublicStories(limit);
+      res.json(stories);
+    } catch (error) {
+      console.error("Get public stories error:", error);
+      res.status(500).json({ message: "Failed to get public stories" });
+    }
+  });
+
+  // Get specific story
+  app.get('/api/stories/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const story = await storage.getStoryById(id);
+      
+      if (!story) {
+        return res.status(404).json({ message: 'Story not found' });
+      }
+
+      res.json(story);
+    } catch (error) {
+      console.error("Get story error:", error);
+      res.status(500).json({ message: "Failed to get story" });
+    }
+  });
+
+  // Like/Unlike story
+  app.post('/api/stories/:id/like', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const storyId = parseInt(req.params.id);
+      const { action } = req.body; // 'like' or 'unlike'
+
+      if (action === 'like') {
+        const like = await storage.likeStory(storyId, userId);
+        res.json({ like, action: 'liked' });
+      } else if (action === 'unlike') {
+        await storage.unlikeStory(storyId, userId);
+        res.json({ action: 'unliked' });
+      } else {
+        res.status(400).json({ message: 'Invalid action. Use "like" or "unlike"' });
+      }
+    } catch (error) {
+      console.error("Like/unlike story error:", error);
+      res.status(500).json({ message: "Failed to process like/unlike" });
+    }
+  });
+
+  // Update story (make public/private, edit)
+  app.patch('/api/stories/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      
+      // Check if user owns the story
+      const story = await storage.getStoryById(id);
+      if (!story || story.userId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to edit this story' });
+      }
+
+      const updatedStory = await storage.updateStory(id, req.body);
+      res.json(updatedStory);
+    } catch (error) {
+      console.error("Update story error:", error);
+      res.status(500).json({ message: "Failed to update story" });
+    }
+  });
+
+  // Delete story
+  app.delete('/api/stories/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      
+      // Check if user owns the story
+      const story = await storage.getStoryById(id);
+      if (!story || story.userId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to delete this story' });
+      }
+
+      await storage.deleteStory(id);
+      res.json({ message: 'Story deleted successfully' });
+    } catch (error) {
+      console.error("Delete story error:", error);
+      res.status(500).json({ message: "Failed to delete story" });
     }
   });
 

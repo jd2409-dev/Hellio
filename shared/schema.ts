@@ -338,6 +338,29 @@ export const challengeLeaderboards = pgTable("challenge_leaderboards", {
   lastAttemptAt: timestamp("last_attempt_at").defaultNow(),
 });
 
+// Story Creation tables for AI-powered educational storytelling
+export const storyCreations = pgTable("story_creations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title").notNull(),
+  concept: text("concept").notNull(), // Original user input
+  scenes: jsonb("scenes").notNull(), // Array of 4 scene objects
+  difficulty: varchar("difficulty"), // easy, medium, hard
+  subject: varchar("subject"), // Science, Math, History, etc.
+  tags: jsonb("tags").$type<string[]>().default([]),
+  isPublic: boolean("is_public").default(false),
+  likesCount: integer("likes_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const storyLikes = pgTable("story_likes", {
+  id: serial("id").primaryKey(),
+  storyId: integer("story_id").notNull().references(() => storyCreations.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Types
 export type StudyPlan = typeof studyPlans.$inferSelect;
 export type InsertStudyPlan = typeof studyPlans.$inferInsert;
@@ -359,6 +382,10 @@ export type ChallengeAttempt = typeof challengeAttempts.$inferSelect;
 export type InsertChallengeAttempt = typeof challengeAttempts.$inferInsert;
 export type ChallengeLeaderboard = typeof challengeLeaderboards.$inferSelect;
 export type InsertChallengeLeaderboard = typeof challengeLeaderboards.$inferInsert;
+export type StoryCreation = typeof storyCreations.$inferSelect;
+export type InsertStoryCreation = typeof storyCreations.$inferInsert;
+export type StoryLike = typeof storyLikes.$inferSelect;
+export type InsertStoryLike = typeof storyLikes.$inferInsert;
 
 // Create schemas using drizzle-zod
 export const insertStudyPlanSchema = createInsertSchema(studyPlans).omit({
@@ -414,6 +441,17 @@ export const insertChallengeLeaderboardSchema = createInsertSchema(challengeLead
   lastAttemptAt: true,
 });
 
+export const insertStoryCreationSchema = createInsertSchema(storyCreations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStoryLikeSchema = createInsertSchema(storyLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userSubjects: many(userSubjects),
@@ -431,6 +469,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   timeCapsules: many(timeCapsules),
   createdChallenges: many(peerChallenges),
   challengeAttempts: many(challengeAttempts),
+  storyCreations: many(storyCreations),
+  storyLikes: many(storyLikes),
 }));
 
 export const studyPlansRelations = relations(studyPlans, ({ one, many }) => ({
@@ -522,6 +562,16 @@ export const challengeAttemptsRelations = relations(challengeAttempts, ({ one })
 export const challengeLeaderboardsRelations = relations(challengeLeaderboards, ({ one }) => ({
   challenge: one(peerChallenges, { fields: [challengeLeaderboards.challengeId], references: [peerChallenges.challengeId] }),
   participant: one(users, { fields: [challengeLeaderboards.participantId], references: [users.id] }),
+}));
+
+export const storyCreationsRelations = relations(storyCreations, ({ one, many }) => ({
+  user: one(users, { fields: [storyCreations.userId], references: [users.id] }),
+  likes: many(storyLikes),
+}));
+
+export const storyLikesRelations = relations(storyLikes, ({ one }) => ({
+  story: one(storyCreations, { fields: [storyLikes.storyId], references: [storyCreations.id] }),
+  user: one(users, { fields: [storyLikes.userId], references: [users.id] }),
 }));
 
 export const pdfDriveBooksRelations = relations(pdfDriveBooks, ({ many }) => ({
