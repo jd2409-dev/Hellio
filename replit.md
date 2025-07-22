@@ -80,6 +80,16 @@ Key entities include:
 - **Zero-cost Implementation**: Uses free Jitsi rooms and open-source tools for education delivery
 - **Multi-modal Learning**: Combines visual content, spoken explanations, and text-based interactions
 
+### Time Capsule Mode (Updated January 2025)
+- **Concept Recording**: Students record video/audio explanations of concepts to their future selves
+- **Multi-format Support**: Text, audio, and video recording capabilities with browser media APIs
+- **Automated Reminders**: System pings users months later (configurable 1-365 days) for reflection
+- **Reflection Interface**: Comprehensive reflection form for comparing past vs current understanding
+- **Growth Tracking**: Documents learning journey and insights about personal knowledge evolution
+- **Database Integration**: PostgreSQL storage for recordings, reminders, and reflection data
+- **Gamification**: XP rewards for creating capsules (25 XP) and completing reflections (50 XP)
+- **Progressive Learning**: Helps students recognize knowledge gaps and celebrate growth over time
+
 ### Internet Archive Book Integration (Updated January 2025)
 - **Archive.org Integration**: Replaced PDF Drive with Internet Archive's vast educational book collection
 - **Comprehensive Search**: Multi-field search across titles, subjects, creators, and descriptions for broader topic coverage

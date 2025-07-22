@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
-import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema } from "@shared/schema";
+import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
@@ -1476,6 +1476,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get PDF Drive stats error:", error);
       res.status(500).json({ message: "Failed to get PDF Drive stats" });
+    }
+  });
+
+  // Time Capsule Routes
+  
+  // Get user's time capsules
+  app.get('/api/time-capsules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsules = await storage.getUserTimeCapsules(userId);
+      res.json(timeCapsules);
+    } catch (error) {
+      console.error("Get time capsules error:", error);
+      res.status(500).json({ message: "Failed to get time capsules" });
+    }
+  });
+
+  // Create a new time capsule
+  app.post('/api/time-capsules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsuleData = insertTimeCapsuleSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      // Calculate reflection date based on period
+      const reflectionDate = new Date();
+      reflectionDate.setDate(reflectionDate.getDate() + (timeCapsuleData.reflectionPeriod || 90));
+      timeCapsuleData.reflectionDate = reflectionDate;
+
+      const timeCapsule = await storage.createTimeCapsule(timeCapsuleData);
+      
+      // Create reminder for reflection
+      await storage.createTimeCapsuleReminder({
+        timeCapsuleId: timeCapsule.id,
+        reminderDate: reflectionDate,
+        reminderType: 'reflection',
+        message: `Time to reflect on your understanding of: ${timeCapsule.title}`,
+      });
+
+      // Award XP for creating time capsule
+      const user = await storage.getUser(userId);
+      if (user) {
+        await storage.upsertUser({
+          ...user,
+          xp: (user.xp || 0) + 25,
+          coins: (user.coins || 0) + 10,
+        });
+      }
+
+      res.json(timeCapsule);
+    } catch (error) {
+      console.error("Create time capsule error:", error);
+      res.status(500).json({ message: "Failed to create time capsule" });
+    }
+  });
+
+  // Get specific time capsule
+  app.get('/api/time-capsules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsuleId = parseInt(req.params.id);
+      
+      const timeCapsule = await storage.getTimeCapsule(timeCapsuleId);
+      if (!timeCapsule || timeCapsule.userId !== userId) {
+        return res.status(404).json({ message: 'Time capsule not found' });
+      }
+
+      res.json(timeCapsule);
+    } catch (error) {
+      console.error("Get time capsule error:", error);
+      res.status(500).json({ message: "Failed to get time capsule" });
+    }
+  });
+
+  // Reflect on a time capsule
+  app.post('/api/time-capsules/:id/reflect', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsuleId = parseInt(req.params.id);
+      const { reflectionNotes, currentUnderstanding, growthInsights } = req.body;
+
+      const timeCapsule = await storage.getTimeCapsule(timeCapsuleId);
+      if (!timeCapsule || timeCapsule.userId !== userId) {
+        return res.status(404).json({ message: 'Time capsule not found' });
+      }
+
+      const updatedCapsule = await storage.reflectOnTimeCapsule(timeCapsuleId, {
+        reflectionNotes,
+        currentUnderstanding,
+        growthInsights,
+      });
+
+      // Award XP for reflection
+      const user = await storage.getUser(userId);
+      if (user) {
+        await storage.upsertUser({
+          ...user,
+          xp: (user.xp || 0) + 50,
+          coins: (user.coins || 0) + 20,
+        });
+      }
+
+      res.json(updatedCapsule);
+    } catch (error) {
+      console.error("Reflect on time capsule error:", error);
+      res.status(500).json({ message: "Failed to reflect on time capsule" });
+    }
+  });
+
+  // Update time capsule
+  app.patch('/api/time-capsules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsuleId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      const timeCapsule = await storage.getTimeCapsule(timeCapsuleId);
+      if (!timeCapsule || timeCapsule.userId !== userId) {
+        return res.status(404).json({ message: 'Time capsule not found' });
+      }
+
+      const updatedCapsule = await storage.updateTimeCapsule(timeCapsuleId, updateData);
+      res.json(updatedCapsule);
+    } catch (error) {
+      console.error("Update time capsule error:", error);
+      res.status(500).json({ message: "Failed to update time capsule" });
+    }
+  });
+
+  // Get time capsules due for reflection
+  app.get('/api/time-capsules/due-for-reflection', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const dueTimeCapsules = await storage.getTimeCapsulesDueForReflection();
+      
+      // Filter by user
+      const userDueCapsules = dueTimeCapsules.filter(capsule => capsule.userId === userId);
+      res.json(userDueCapsules);
+    } catch (error) {
+      console.error("Get due time capsules error:", error);
+      res.status(500).json({ message: "Failed to get due time capsules" });
     }
   });
 

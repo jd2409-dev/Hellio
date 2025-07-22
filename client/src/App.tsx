@@ -16,6 +16,7 @@ import Reflection from "@/pages/reflection";
 import StudyPlanner from "@/pages/study-planner";
 import PomodoroPage from "@/pages/pomodoro";
 import PdfDrivePage from "@/pages/pdf-drive";
+import TimeCapsule from "@/pages/time-capsule";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -49,6 +50,7 @@ function Router() {
           <Route path="/study-planner" component={StudyPlanner} />
           <Route path="/pomodoro" component={PomodoroPage} />
           <Route path="/pdf-drive" component={PdfDrivePage} />
+          <Route path="/time-capsule" component={TimeCapsule} />
         </>
       )}
       <Route component={NotFound} />

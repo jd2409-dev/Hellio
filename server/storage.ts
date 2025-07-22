@@ -44,9 +44,15 @@ import {
   type InsertPdfDriveBook,
   type UserPdfLibrary,
   type InsertUserPdfLibrary,
+  type TimeCapsule,
+  type InsertTimeCapsule,
+  type TimeCapsuleReminder,
+  type InsertTimeCapsuleReminder,
+  timeCapsules,
+  timeCapsuleReminders,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -121,6 +127,19 @@ export interface IStorage {
   addBookToUserLibrary(data: InsertUserPdfLibrary): Promise<UserPdfLibrary>;
   getUserPdfLibrary(userId: string): Promise<UserPdfLibrary[]>;
   updateUserPdfLibraryItem(id: number, data: Partial<InsertUserPdfLibrary>): Promise<UserPdfLibrary>;
+
+  // Time Capsule operations
+  createTimeCapsule(capsule: InsertTimeCapsule): Promise<TimeCapsule>;
+  getUserTimeCapsules(userId: string): Promise<TimeCapsule[]>;
+  getTimeCapsule(id: number): Promise<TimeCapsule | undefined>;
+  updateTimeCapsule(id: number, data: Partial<InsertTimeCapsule>): Promise<TimeCapsule>;
+  reflectOnTimeCapsule(id: number, reflectionData: { reflectionNotes: string; currentUnderstanding: string; growthInsights: string }): Promise<TimeCapsule>;
+  getTimeCapsulesDueForReflection(): Promise<TimeCapsule[]>;
+  
+  // Time Capsule Reminder operations
+  createTimeCapsuleReminder(reminder: InsertTimeCapsuleReminder): Promise<TimeCapsuleReminder>;
+  getTimeCapsuleReminders(timeCapsuleId: number): Promise<TimeCapsuleReminder[]>;
+  markReminderAsSent(id: number): Promise<TimeCapsuleReminder>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -484,6 +503,72 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(userPdfLibrary)
       .set(data)
       .where(eq(userPdfLibrary.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Time Capsule operations
+  async createTimeCapsule(capsule: InsertTimeCapsule): Promise<TimeCapsule> {
+    const [newCapsule] = await db.insert(timeCapsules).values(capsule).returning();
+    return newCapsule;
+  }
+
+  async getUserTimeCapsules(userId: string): Promise<TimeCapsule[]> {
+    return await db.select().from(timeCapsules)
+      .where(eq(timeCapsules.userId, userId))
+      .orderBy(desc(timeCapsules.createdAt));
+  }
+
+  async getTimeCapsule(id: number): Promise<TimeCapsule | undefined> {
+    const [capsule] = await db.select().from(timeCapsules).where(eq(timeCapsules.id, id));
+    return capsule;
+  }
+
+  async updateTimeCapsule(id: number, data: Partial<InsertTimeCapsule>): Promise<TimeCapsule> {
+    const [updated] = await db.update(timeCapsules)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(timeCapsules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async reflectOnTimeCapsule(id: number, reflectionData: { reflectionNotes: string; currentUnderstanding: string; growthInsights: string }): Promise<TimeCapsule> {
+    const [updated] = await db.update(timeCapsules)
+      .set({
+        ...reflectionData,
+        status: 'reflected',
+        reflectedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(timeCapsules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getTimeCapsulesDueForReflection(): Promise<TimeCapsule[]> {
+    return await db.select().from(timeCapsules)
+      .where(and(
+        eq(timeCapsules.status, 'active'),
+        lte(timeCapsules.reflectionDate, new Date())
+      ));
+  }
+
+  // Time Capsule Reminder operations
+  async createTimeCapsuleReminder(reminder: InsertTimeCapsuleReminder): Promise<TimeCapsuleReminder> {
+    const [newReminder] = await db.insert(timeCapsuleReminders).values(reminder).returning();
+    return newReminder;
+  }
+
+  async getTimeCapsuleReminders(timeCapsuleId: number): Promise<TimeCapsuleReminder[]> {
+    return await db.select().from(timeCapsuleReminders)
+      .where(eq(timeCapsuleReminders.timeCapsuleId, timeCapsuleId))
+      .orderBy(desc(timeCapsuleReminders.reminderDate));
+  }
+
+  async markReminderAsSent(id: number): Promise<TimeCapsuleReminder> {
+    const [updated] = await db.update(timeCapsuleReminders)
+      .set({ sent: true })
+      .where(eq(timeCapsuleReminders.id, id))
       .returning();
     return updated;
   }

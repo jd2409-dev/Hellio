@@ -299,7 +299,7 @@ export default function Dashboard() {
         {/* Additional Features Section */}
         <div className="mb-12">
           <h2 className="text-4xl font-bold mb-8 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">Productivity Tools</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
 
             {/* Pomodoro Timer */}
             <Link href="/pomodoro">
@@ -330,6 +330,23 @@ export default function Dashboard() {
                   <Button className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 w-full">
                     <Download className="mr-2 h-4 w-4" />
                     Browse Books
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Time Capsule */}
+            <Link href="/time-capsule">
+              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-8 text-center">
+                  <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-violet-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Clock className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">Time Capsule</h3>
+                  <p className="text-slate-400 mb-6">Record concepts to your future self for reflection</p>
+                  <Button className="bg-gradient-to-r from-purple-500 to-violet-500 text-white hover:from-purple-600 hover:to-violet-600 w-full">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Create Capsule
                   </Button>
                 </CardContent>
               </Card>

@@ -262,6 +262,40 @@ export const userPdfLibrary = pgTable("user_pdf_library", {
   lastAccessedAt: timestamp("last_accessed_at"),
 });
 
+// Time Capsule recordings - for recording concepts to future self
+export const timeCapsules = pgTable("time_capsules", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  title: varchar("title").notNull(),
+  concept: text("concept").notNull(), // The concept being explained
+  description: text("description"), // Additional details about the recording
+  recordingType: varchar("recording_type").notNull(), // 'video', 'audio', 'text'
+  recordingUrl: text("recording_url"), // URL to stored recording file
+  transcript: text("transcript"), // Auto-generated or manual transcript
+  reflectionPeriod: integer("reflection_period").notNull().default(90), // Days until reflection reminder
+  reflectionDate: timestamp("reflection_date").notNull(),
+  status: varchar("status").notNull().default("active"), // active, reflected, archived
+  reflectedAt: timestamp("reflected_at"),
+  reflectionNotes: text("reflection_notes"), // Notes added during reflection
+  currentUnderstanding: text("current_understanding"), // Updated understanding after reflection
+  growthInsights: text("growth_insights"), // Insights about learning growth
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Time Capsule reminders for future reflection
+export const timeCapsuleReminders = pgTable("time_capsule_reminders", {
+  id: serial("id").primaryKey(),
+  timeCapsuleId: integer("time_capsule_id").notNull().references(() => timeCapsules.id),
+  reminderDate: timestamp("reminder_date").notNull(),
+  reminderType: varchar("reminder_type").notNull().default("reflection"), // reflection, follow_up
+  message: text("message"),
+  sent: boolean("sent").default(false),
+  responded: boolean("responded").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Types
 export type StudyPlan = typeof studyPlans.$inferSelect;
 export type InsertStudyPlan = typeof studyPlans.$inferInsert;
@@ -273,6 +307,10 @@ export type PdfDriveBook = typeof pdfDriveBooks.$inferSelect;
 export type InsertPdfDriveBook = typeof pdfDriveBooks.$inferInsert;
 export type UserPdfLibrary = typeof userPdfLibrary.$inferSelect;
 export type InsertUserPdfLibrary = typeof userPdfLibrary.$inferInsert;
+export type TimeCapsule = typeof timeCapsules.$inferSelect;
+export type InsertTimeCapsule = typeof timeCapsules.$inferInsert;
+export type TimeCapsuleReminder = typeof timeCapsuleReminders.$inferSelect;
+export type InsertTimeCapsuleReminder = typeof timeCapsuleReminders.$inferInsert;
 
 // Create schemas using drizzle-zod
 export const insertStudyPlanSchema = createInsertSchema(studyPlans).omit({
@@ -302,6 +340,17 @@ export const insertUserPdfLibrarySchema = createInsertSchema(userPdfLibrary).omi
   addedAt: true,
 });
 
+export const insertTimeCapsuleSchema = createInsertSchema(timeCapsules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTimeCapsuleReminderSchema = createInsertSchema(timeCapsuleReminders).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userSubjects: many(userSubjects),
@@ -316,6 +365,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   studyPlans: many(studyPlans),
   pomodoroSessions: many(pomodoroSessions),
   userPdfLibrary: many(userPdfLibrary),
+  timeCapsules: many(timeCapsules),
 }));
 
 export const studyPlansRelations = relations(studyPlans, ({ one, many }) => ({
@@ -380,6 +430,16 @@ export const performanceMetricsRelations = relations(performanceMetrics, ({ one 
 export const pomodoroSessionsRelations = relations(pomodoroSessions, ({ one }) => ({
   user: one(users, { fields: [pomodoroSessions.userId], references: [users.id] }),
   subject: one(subjects, { fields: [pomodoroSessions.subjectId], references: [subjects.id] }),
+}));
+
+export const timeCapsulesRelations = relations(timeCapsules, ({ one, many }) => ({
+  user: one(users, { fields: [timeCapsules.userId], references: [users.id] }),
+  subject: one(subjects, { fields: [timeCapsules.subjectId], references: [subjects.id] }),
+  reminders: many(timeCapsuleReminders),
+}));
+
+export const timeCapsuleRemindersRelations = relations(timeCapsuleReminders, ({ one }) => ({
+  timeCapsule: one(timeCapsules, { fields: [timeCapsuleReminders.timeCapsuleId], references: [timeCapsules.id] }),
 }));
 
 export const pdfDriveBooksRelations = relations(pdfDriveBooks, ({ many }) => ({
