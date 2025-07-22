@@ -2,6 +2,11 @@ import { GoogleGenAI } from "@google/genai";
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
