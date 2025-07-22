@@ -60,6 +60,7 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
   const [concept, setConcept] = useState("");
   const [subject, setSubject] = useState("");
   const [difficulty, setDifficulty] = useState("");
+  const [enhancedMode, setEnhancedMode] = useState(false);
 
   const generateStoryMutation = useMutation({
     mutationFn: async (data: any) => apiRequest('/api/stories/generate', {
@@ -96,6 +97,7 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
       concept: concept.trim(),
       subject: subject || undefined,
       difficulty: difficulty || undefined,
+      enhanced: enhancedMode,
     });
   };
 
@@ -168,6 +170,32 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
               </Select>
             </div>
           </div>
+
+          {/* Enhanced Mode Toggle */}
+          <Card className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border-purple-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-white font-medium">Enhanced Multimedia Mode</Label>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Generate images, audio narration, and video content (takes longer)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEnhancedMode(!enhancedMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    enhancedMode ? 'bg-nexus-green' : 'bg-slate-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      enhancedMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Button
             onClick={handleGenerate}

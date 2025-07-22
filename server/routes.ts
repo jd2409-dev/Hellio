@@ -6,7 +6,7 @@ import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateEducationalStory, suggestStoryTitle } from "./services/storytelling";
+import { generateEducationalStory, suggestStoryTitle, generateEnhancedStory } from "./services/storytelling";
 import { GoogleGenAI } from "@google/genai";
 import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
 import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
@@ -1808,25 +1808,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate story from concept
   app.post('/api/stories/generate', isAuthenticated, async (req: any, res) => {
     try {
-      const { concept, subject, difficulty } = req.body;
+      const { concept, subject, difficulty, enhanced = false } = req.body;
       
       if (!concept) {
         return res.status(400).json({ message: 'Concept is required' });
       }
 
-      // Generate the story scenes
-      const scenes = await generateEducationalStory(concept, subject, difficulty);
-      
-      // Generate a suggested title
-      const suggestedTitle = await suggestStoryTitle(concept);
-      
-      res.json({
-        scenes,
-        suggestedTitle,
-        concept,
-        subject,
-        difficulty,
-      });
+      if (enhanced) {
+        // Use enhanced Python-based generation with multimedia
+        const enhancedResult = await generateEnhancedStory(concept, subject, difficulty);
+        
+        const suggestedTitle = await suggestStoryTitle(concept);
+        
+        res.json({
+          ...enhancedResult,
+          suggestedTitle,
+        });
+      } else {
+        // Use basic TypeScript generation
+        const scenes = await generateEducationalStory(concept, subject, difficulty);
+        const suggestedTitle = await suggestStoryTitle(concept);
+        
+        res.json({
+          scenes,
+          suggestedTitle,
+          concept,
+          subject,
+          difficulty,
+        });
+      }
     } catch (error) {
       console.error("Generate story error:", error);
       res.status(500).json({ 

@@ -1,4 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
+import { spawn } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -90,5 +93,99 @@ export async function suggestStoryTitle(concept: string): Promise<string> {
   } catch (error) {
     console.error("Title generation error:", error);
     return `Story: ${concept.substring(0, 30)}...`;
+  }
+}
+
+export interface EnhancedStoryResult {
+  success: boolean;
+  story_id: string;
+  concept: string;
+  subject?: string;
+  difficulty?: string;
+  scenes: StoryScene[];
+  media_files: {
+    images: string[];
+    audio_files: string[];
+    video_path?: string;
+  };
+  generated_at: string;
+  error?: string;
+}
+
+export async function generateEnhancedStory(
+  concept: string, 
+  subject?: string, 
+  difficulty?: string,
+  storyId?: string
+): Promise<EnhancedStoryResult> {
+  try {
+    const pythonScriptPath = path.join(__dirname, '../ai-storytelling-enhanced.py');
+    
+    // Prepare arguments for Python script
+    const args = [pythonScriptPath, concept];
+    if (subject) args.push(subject);
+    if (difficulty) args.push(difficulty);
+    
+    // Execute Python script
+    const result = await new Promise<EnhancedStoryResult>((resolve, reject) => {
+      const pythonProcess = spawn('python3', args, {
+        env: { ...process.env },
+      });
+      
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`Python script error: ${stderr}`);
+          reject(new Error(`Python script failed with code ${code}: ${stderr}`));
+        } else {
+          try {
+            const result = JSON.parse(stdout);
+            resolve(result);
+          } catch (parseError) {
+            console.error(`Failed to parse Python output: ${stdout}`);
+            reject(new Error(`Failed to parse Python script output: ${parseError}`));
+          }
+        }
+      });
+      
+      pythonProcess.on('error', (error) => {
+        console.error(`Failed to start Python process: ${error}`);
+        reject(new Error(`Failed to execute Python script: ${error}`));
+      });
+    });
+    
+    return result;
+    
+  } catch (error) {
+    console.error("Enhanced story generation error:", error);
+    
+    // Fallback to basic story generation
+    const basicScenes = await generateEducationalStory(concept, subject, difficulty);
+    
+    return {
+      success: false,
+      story_id: storyId || Date.now().toString(),
+      concept,
+      subject,
+      difficulty,
+      scenes: basicScenes,
+      media_files: {
+        images: [],
+        audio_files: [],
+        video_path: undefined
+      },
+      generated_at: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 }
