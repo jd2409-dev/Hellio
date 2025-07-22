@@ -63,10 +63,15 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
   const [enhancedMode, setEnhancedMode] = useState(false);
 
   const generateStoryMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('/api/stories/generate', {
-      method: 'POST',
-      body: data,
-    }),
+    mutationFn: async (data: { concept: string; subject?: string; difficulty?: string; enhanced?: boolean }) => {
+      const response = await fetch('/api/stories/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to generate story');
+      return response.json();
+    },
     onSuccess: (response) => {
       onStoryGenerated(response);
       toast({
@@ -95,8 +100,8 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
 
     generateStoryMutation.mutate({
       concept: concept.trim(),
-      subject: subject || undefined,
-      difficulty: difficulty || undefined,
+      subject: subject === "none" ? undefined : subject,
+      difficulty: difficulty === "none" ? undefined : difficulty,
       enhanced: enhancedMode,
     });
   };
@@ -143,7 +148,7 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
                   <SelectValue placeholder="Choose subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No preference</SelectItem>
+                  <SelectItem value="none">No preference</SelectItem>
                   <SelectItem value="Science">Science</SelectItem>
                   <SelectItem value="Mathematics">Mathematics</SelectItem>
                   <SelectItem value="History">History</SelectItem>
@@ -162,7 +167,7 @@ const StoryGenerator = ({ onStoryGenerated }: { onStoryGenerated: (story: any) =
                   <SelectValue placeholder="Choose difficulty" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No preference</SelectItem>
+                  <SelectItem value="none">No preference</SelectItem>
                   <SelectItem value="easy">Easy (Elementary)</SelectItem>
                   <SelectItem value="medium">Medium (Middle School)</SelectItem>
                   <SelectItem value="hard">Hard (High School+)</SelectItem>
@@ -686,17 +691,22 @@ export default function Storytelling() {
   const [generatedStory, setGeneratedStory] = useState<any>(null);
 
   const saveStoryMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('/api/stories', {
-      method: 'POST',
-      body: data,
-    }),
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to save story');
+      return response.json();
+    },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['/api/stories/my-stories'] });
       setActiveTab("library");
       setGeneratedStory(null);
       toast({
         title: "Story Saved!",
-        description: `You earned ${response.xpEarned} XP and ${response.coinsEarned} coins!`,
+        description: `You earned ${response.xpEarned || 20} XP and ${response.coinsEarned || 10} coins!`,
       });
     },
     onError: (error: any) => {

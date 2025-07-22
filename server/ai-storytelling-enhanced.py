@@ -18,7 +18,12 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 from gtts import gTTS
 from pydub import AudioSegment
-from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, ImageClip
+try:
+    from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, ImageClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+    logger.warning("MoviePy not available, video creation will be disabled")
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -27,6 +32,13 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+try:
+    from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, ImageClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+    logger.warning("MoviePy not available, video creation will be disabled")
 
 class EnhancedStorytellingSystem:
     def __init__(self):
@@ -342,6 +354,10 @@ Focus on visual storytelling that can be converted to images and animations."""
 
     def create_story_video(self, scenes: List[Dict[str, Any]], story_id: str, title: str = "Educational Story") -> str:
         """Create a complete video from all scenes using MoviePy"""
+        if not MOVIEPY_AVAILABLE:
+            logger.warning("MoviePy not available, skipping video creation")
+            return None
+            
         try:
             video_clips = []
             

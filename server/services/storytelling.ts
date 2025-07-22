@@ -119,7 +119,7 @@ export async function generateEnhancedStory(
   storyId?: string
 ): Promise<EnhancedStoryResult> {
   try {
-    const pythonScriptPath = path.join(__dirname, '../ai-storytelling-enhanced.py');
+    const pythonScriptPath = path.join(__dirname, '../ai-storytelling-simple.py');
     
     // Prepare arguments for Python script
     const args = [pythonScriptPath, concept];
