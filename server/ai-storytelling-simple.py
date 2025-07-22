@@ -33,7 +33,7 @@ class SimpleStorytellingSystem:
     def __init__(self):
         """Initialize the Simple Storytelling System"""
         self.setup_gemini()
-        self.output_dir = Path("./server/public/stories")
+        self.output_dir = Path("./public/stories")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Audio settings

@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema, insertStoryCreationSchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
+import path from "path";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { generateEducationalStory, suggestStoryTitle, generateEnhancedStory } from "./services/storytelling";
@@ -1825,7 +1826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.json({
             ...enhancedResult,
             suggestedTitle,
-            videoUrl: enhancedResult.media_files.video_path?.replace(/.*server\/public/, '') || null,
+            videoUrl: enhancedResult.media_files.video_path ? `/stories/${path.basename(enhancedResult.media_files.video_path)}` : null,
             hasVideo: true
           });
         } else {
