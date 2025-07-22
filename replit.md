@@ -90,6 +90,18 @@ Key entities include:
 - **Gamification**: XP rewards for creating capsules (25 XP) and completing reflections (50 XP)
 - **Progressive Learning**: Helps students recognize knowledge gaps and celebrate growth over time
 
+### Gamified Peer Challenge System (Updated January 2025)
+- **Challenge Creation**: Users create custom quiz challenges with multiple-choice questions and explanations
+- **JSON Package Sharing**: Challenges packaged as downloadable JSON files for easy peer sharing
+- **Shareable URLs**: Challenges accessible via unique links like "https://gamify.repl.co/challenges/abc123"
+- **Interactive Quiz Interface**: Timed quizzes with progress tracking and smooth animations using Framer Motion
+- **Real-time Leaderboards**: PostgreSQL-backed scoring system with attempt tracking and best score rankings
+- **Gamification Rewards**: XP and coin rewards for creating challenges (30 XP) and completing them (score-based XP)
+- **Difficulty Levels**: Easy, medium, and hard difficulty settings with visual badges and color coding
+- **Attempt Limits**: Configurable maximum attempts per challenge with retry functionality
+- **Results Sharing**: Social sharing functionality for challenge results and achievements
+- **Multi-format Export**: Challenges exportable as JSON with metadata for cross-platform compatibility
+
 ### Internet Archive Book Integration (Updated January 2025)
 - **Archive.org Integration**: Replaced PDF Drive with Internet Archive's vast educational book collection
 - **Comprehensive Search**: Multi-field search across titles, subjects, creators, and descriptions for broader topic coverage

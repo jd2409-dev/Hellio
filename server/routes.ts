@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
-import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema } from "@shared/schema";
+import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
 import { storage } from "./storage";
@@ -1619,6 +1619,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get due time capsules error:", error);
       res.status(500).json({ message: "Failed to get due time capsules" });
+    }
+  });
+
+  // Peer Challenge Routes
+  
+  // Create a new peer challenge
+  app.post('/api/peer-challenges', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Generate unique challenge ID
+      const challengeId = 'ch_' + Math.random().toString(36).substr(2, 16);
+      
+      const challengeData = insertPeerChallengeSchema.parse({
+        ...req.body,
+        challengeId,
+        creatorId: userId,
+        creatorName: `${user.firstName || 'Anonymous'} ${user.lastName || 'User'}`.trim(),
+      });
+
+      const challenge = await storage.createPeerChallenge(challengeData);
+      
+      // Award XP for creating challenge
+      await storage.upsertUser({
+        ...user,
+        xp: (user.xp || 0) + 30,
+        coins: (user.coins || 0) + 15,
+      });
+
+      res.json(challenge);
+    } catch (error) {
+      console.error("Create peer challenge error:", error);
+      res.status(500).json({ message: "Failed to create peer challenge" });
+    }
+  });
+
+  // Get public challenges (discovery)
+  app.get('/api/peer-challenges/public', isAuthenticated, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const challenges = await storage.getPublicChallenges(limit);
+      res.json(challenges);
+    } catch (error) {
+      console.error("Get public challenges error:", error);
+      res.status(500).json({ message: "Failed to get public challenges" });
+    }
+  });
+
+  // Get user's created challenges
+  app.get('/api/peer-challenges/my-challenges', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const challenges = await storage.getUserCreatedChallenges(userId);
+      res.json(challenges);
+    } catch (error) {
+      console.error("Get user challenges error:", error);
+      res.status(500).json({ message: "Failed to get user challenges" });
+    }
+  });
+
+  // Get specific challenge by ID
+  app.get('/api/peer-challenges/:challengeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const challengeId = req.params.challengeId;
+      const challenge = await storage.getPeerChallenge(challengeId);
+      
+      if (!challenge) {
+        return res.status(404).json({ message: 'Challenge not found' });
+      }
+
+      // Get leaderboard for this challenge
+      const leaderboard = await storage.getChallengeLeaderboard(challengeId);
+      
+      res.json({
+        ...challenge,
+        leaderboard,
+      });
+    } catch (error) {
+      console.error("Get challenge error:", error);
+      res.status(500).json({ message: "Failed to get challenge" });
+    }
+  });
+
+  // Submit challenge attempt
+  app.post('/api/peer-challenges/:challengeId/attempt', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const challengeId = req.params.challengeId;
+      const { answers, score, timeSpent } = req.body;
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const challenge = await storage.getPeerChallenge(challengeId);
+      if (!challenge) {
+        return res.status(404).json({ message: 'Challenge not found' });
+      }
+
+      // Check attempt limit
+      const userAttempts = await storage.getUserChallengeAttempts(userId, challengeId);
+      if (userAttempts.length >= (challenge.maxAttempts || 3)) {
+        return res.status(400).json({ message: 'Maximum attempts exceeded' });
+      }
+
+      // Create attempt record
+      const attemptData = insertChallengeAttemptSchema.parse({
+        challengeId,
+        participantId: userId,
+        participantName: `${user.firstName || 'Anonymous'} ${user.lastName || 'User'}`.trim(),
+        answers,
+        score,
+        timeSpent,
+      });
+
+      const attempt = await storage.createChallengeAttempt(attemptData);
+
+      // Update leaderboard
+      await storage.updateLeaderboard({
+        challengeId,
+        participantId: userId,
+        participantName: attemptData.participantName,
+        bestScore: score,
+        bestTime: timeSpent,
+      });
+
+      // Award XP for completing challenge
+      const xpReward = Math.floor(parseFloat(score.toString()) * 0.5); // 0.5 XP per percentage point
+      await storage.upsertUser({
+        ...user,
+        xp: (user.xp || 0) + xpReward,
+        coins: (user.coins || 0) + Math.floor(xpReward / 2),
+      });
+
+      res.json({ 
+        attempt, 
+        xpEarned: xpReward,
+        coinsEarned: Math.floor(xpReward / 2) 
+      });
+    } catch (error) {
+      console.error("Submit challenge attempt error:", error);
+      res.status(500).json({ message: "Failed to submit challenge attempt" });
+    }
+  });
+
+  // Get challenge leaderboard
+  app.get('/api/peer-challenges/:challengeId/leaderboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const challengeId = req.params.challengeId;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const leaderboard = await storage.getChallengeLeaderboard(challengeId, limit);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Get leaderboard error:", error);
+      res.status(500).json({ message: "Failed to get leaderboard" });
+    }
+  });
+
+  // Search challenges
+  app.get('/api/peer-challenges/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const query = req.query.q as string;
+      const subject = req.query.subject as string;
+      
+      if (!query) {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+
+      const challenges = await storage.searchChallenges(query, subject);
+      res.json(challenges);
+    } catch (error) {
+      console.error("Search challenges error:", error);
+      res.status(500).json({ message: "Failed to search challenges" });
     }
   });
 

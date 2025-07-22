@@ -296,6 +296,48 @@ export const timeCapsuleReminders = pgTable("time_capsule_reminders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Peer Challenge tables for gamified quiz sharing
+export const peerChallenges = pgTable("peer_challenges", {
+  id: serial("id").primaryKey(),
+  challengeId: varchar("challenge_id").notNull().unique(), // UUID for sharing
+  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  creatorName: varchar("creator_name").notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  difficulty: varchar("difficulty").notNull(), // easy, medium, hard
+  questionCount: integer("question_count").notNull(),
+  questions: jsonb("questions").notNull(), // Array of question objects
+  timeLimit: integer("time_limit"), // in minutes
+  maxAttempts: integer("max_attempts").default(3),
+  isPublic: boolean("is_public").default(true),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration date
+});
+
+export const challengeAttempts = pgTable("challenge_attempts", {
+  id: serial("id").primaryKey(),
+  challengeId: varchar("challenge_id").notNull().references(() => peerChallenges.challengeId),
+  participantId: varchar("participant_id").notNull().references(() => users.id),
+  participantName: varchar("participant_name").notNull(),
+  answers: jsonb("answers").notNull(), // User's answers
+  score: decimal("score").notNull(),
+  timeSpent: integer("time_spent").notNull(), // Time in seconds
+  completedAt: timestamp("completed_at").defaultNow(),
+});
+
+export const challengeLeaderboards = pgTable("challenge_leaderboards", {
+  id: serial("id").primaryKey(),
+  challengeId: varchar("challenge_id").notNull().references(() => peerChallenges.challengeId),
+  participantId: varchar("participant_id").notNull().references(() => users.id),
+  participantName: varchar("participant_name").notNull(),
+  bestScore: decimal("best_score").notNull(),
+  bestTime: integer("best_time").notNull(),
+  attemptCount: integer("attempt_count").default(1),
+  lastAttemptAt: timestamp("last_attempt_at").defaultNow(),
+});
+
 // Types
 export type StudyPlan = typeof studyPlans.$inferSelect;
 export type InsertStudyPlan = typeof studyPlans.$inferInsert;
@@ -311,6 +353,12 @@ export type TimeCapsule = typeof timeCapsules.$inferSelect;
 export type InsertTimeCapsule = typeof timeCapsules.$inferInsert;
 export type TimeCapsuleReminder = typeof timeCapsuleReminders.$inferSelect;
 export type InsertTimeCapsuleReminder = typeof timeCapsuleReminders.$inferInsert;
+export type PeerChallenge = typeof peerChallenges.$inferSelect;
+export type InsertPeerChallenge = typeof peerChallenges.$inferInsert;
+export type ChallengeAttempt = typeof challengeAttempts.$inferSelect;
+export type InsertChallengeAttempt = typeof challengeAttempts.$inferInsert;
+export type ChallengeLeaderboard = typeof challengeLeaderboards.$inferSelect;
+export type InsertChallengeLeaderboard = typeof challengeLeaderboards.$inferInsert;
 
 // Create schemas using drizzle-zod
 export const insertStudyPlanSchema = createInsertSchema(studyPlans).omit({
@@ -351,6 +399,21 @@ export const insertTimeCapsuleReminderSchema = createInsertSchema(timeCapsuleRem
   createdAt: true,
 });
 
+export const insertPeerChallengeSchema = createInsertSchema(peerChallenges).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChallengeAttemptSchema = createInsertSchema(challengeAttempts).omit({
+  id: true,
+  completedAt: true,
+});
+
+export const insertChallengeLeaderboardSchema = createInsertSchema(challengeLeaderboards).omit({
+  id: true,
+  lastAttemptAt: true,
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userSubjects: many(userSubjects),
@@ -366,6 +429,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   pomodoroSessions: many(pomodoroSessions),
   userPdfLibrary: many(userPdfLibrary),
   timeCapsules: many(timeCapsules),
+  createdChallenges: many(peerChallenges),
+  challengeAttempts: many(challengeAttempts),
 }));
 
 export const studyPlansRelations = relations(studyPlans, ({ one, many }) => ({
@@ -440,6 +505,23 @@ export const timeCapsulesRelations = relations(timeCapsules, ({ one, many }) => 
 
 export const timeCapsuleRemindersRelations = relations(timeCapsuleReminders, ({ one }) => ({
   timeCapsule: one(timeCapsules, { fields: [timeCapsuleReminders.timeCapsuleId], references: [timeCapsules.id] }),
+}));
+
+export const peerChallengesRelations = relations(peerChallenges, ({ one, many }) => ({
+  creator: one(users, { fields: [peerChallenges.creatorId], references: [users.id] }),
+  subject: one(subjects, { fields: [peerChallenges.subjectId], references: [subjects.id] }),
+  attempts: many(challengeAttempts),
+  leaderboard: many(challengeLeaderboards),
+}));
+
+export const challengeAttemptsRelations = relations(challengeAttempts, ({ one }) => ({
+  challenge: one(peerChallenges, { fields: [challengeAttempts.challengeId], references: [peerChallenges.challengeId] }),
+  participant: one(users, { fields: [challengeAttempts.participantId], references: [users.id] }),
+}));
+
+export const challengeLeaderboardsRelations = relations(challengeLeaderboards, ({ one }) => ({
+  challenge: one(peerChallenges, { fields: [challengeLeaderboards.challengeId], references: [peerChallenges.challengeId] }),
+  participant: one(users, { fields: [challengeLeaderboards.participantId], references: [users.id] }),
 }));
 
 export const pdfDriveBooksRelations = relations(pdfDriveBooks, ({ many }) => ({

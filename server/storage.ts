@@ -50,6 +50,15 @@ import {
   type InsertTimeCapsuleReminder,
   timeCapsules,
   timeCapsuleReminders,
+  type PeerChallenge,
+  type InsertPeerChallenge,
+  type ChallengeAttempt,
+  type InsertChallengeAttempt,
+  type ChallengeLeaderboard,
+  type InsertChallengeLeaderboard,
+  peerChallenges,
+  challengeAttempts,
+  challengeLeaderboards,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lte } from "drizzle-orm";
@@ -140,6 +149,22 @@ export interface IStorage {
   createTimeCapsuleReminder(reminder: InsertTimeCapsuleReminder): Promise<TimeCapsuleReminder>;
   getTimeCapsuleReminders(timeCapsuleId: number): Promise<TimeCapsuleReminder[]>;
   markReminderAsSent(id: number): Promise<TimeCapsuleReminder>;
+
+  // Peer Challenge operations
+  createPeerChallenge(challenge: InsertPeerChallenge): Promise<PeerChallenge>;
+  getPeerChallenge(challengeId: string): Promise<PeerChallenge | undefined>;
+  getUserCreatedChallenges(userId: string): Promise<PeerChallenge[]>;
+  getPublicChallenges(limit?: number): Promise<PeerChallenge[]>;
+  searchChallenges(query: string, subject?: string): Promise<PeerChallenge[]>;
+  
+  // Challenge Attempt operations
+  createChallengeAttempt(attempt: InsertChallengeAttempt): Promise<ChallengeAttempt>;
+  getChallengeAttempts(challengeId: string): Promise<ChallengeAttempt[]>;
+  getUserChallengeAttempts(userId: string, challengeId: string): Promise<ChallengeAttempt[]>;
+  
+  // Challenge Leaderboard operations
+  updateLeaderboard(leaderboard: InsertChallengeLeaderboard): Promise<ChallengeLeaderboard>;
+  getChallengeLeaderboard(challengeId: string, limit?: number): Promise<ChallengeLeaderboard[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -571,6 +596,123 @@ export class DatabaseStorage implements IStorage {
       .where(eq(timeCapsuleReminders.id, id))
       .returning();
     return updated;
+  }
+
+  // Peer Challenge operations
+  async createPeerChallenge(challenge: InsertPeerChallenge): Promise<PeerChallenge> {
+    const [newChallenge] = await db.insert(peerChallenges).values(challenge).returning();
+    return newChallenge;
+  }
+
+  async getPeerChallenge(challengeId: string): Promise<PeerChallenge | undefined> {
+    const [challenge] = await db.select().from(peerChallenges)
+      .where(eq(peerChallenges.challengeId, challengeId));
+    return challenge;
+  }
+
+  async getUserCreatedChallenges(userId: string): Promise<PeerChallenge[]> {
+    return await db.select().from(peerChallenges)
+      .where(eq(peerChallenges.creatorId, userId))
+      .orderBy(desc(peerChallenges.createdAt));
+  }
+
+  async getPublicChallenges(limit: number = 20): Promise<PeerChallenge[]> {
+    return await db.select().from(peerChallenges)
+      .where(eq(peerChallenges.isPublic, true))
+      .orderBy(desc(peerChallenges.createdAt))
+      .limit(limit);
+  }
+
+  async searchChallenges(query: string, subject?: string): Promise<PeerChallenge[]> {
+    let whereCondition = and(
+      eq(peerChallenges.isPublic, true),
+      // Simple text search in title and description
+    );
+
+    if (subject) {
+      const subjectRecord = await this.getSubjectByName(subject);
+      if (subjectRecord) {
+        whereCondition = and(
+          whereCondition,
+          eq(peerChallenges.subjectId, subjectRecord.id)
+        );
+      }
+    }
+
+    return await db.select().from(peerChallenges)
+      .where(whereCondition)
+      .orderBy(desc(peerChallenges.createdAt))
+      .limit(20);
+  }
+
+  // Challenge Attempt operations
+  async createChallengeAttempt(attempt: InsertChallengeAttempt): Promise<ChallengeAttempt> {
+    const [newAttempt] = await db.insert(challengeAttempts).values(attempt).returning();
+    return newAttempt;
+  }
+
+  async getChallengeAttempts(challengeId: string): Promise<ChallengeAttempt[]> {
+    return await db.select().from(challengeAttempts)
+      .where(eq(challengeAttempts.challengeId, challengeId))
+      .orderBy(desc(challengeAttempts.completedAt));
+  }
+
+  async getUserChallengeAttempts(userId: string, challengeId: string): Promise<ChallengeAttempt[]> {
+    return await db.select().from(challengeAttempts)
+      .where(and(
+        eq(challengeAttempts.participantId, userId),
+        eq(challengeAttempts.challengeId, challengeId)
+      ))
+      .orderBy(desc(challengeAttempts.completedAt));
+  }
+
+  // Challenge Leaderboard operations
+  async updateLeaderboard(leaderboardData: InsertChallengeLeaderboard): Promise<ChallengeLeaderboard> {
+    // Check if entry exists
+    const [existing] = await db.select().from(challengeLeaderboards)
+      .where(and(
+        eq(challengeLeaderboards.challengeId, leaderboardData.challengeId),
+        eq(challengeLeaderboards.participantId, leaderboardData.participantId)
+      ));
+
+    if (existing) {
+      // Update existing entry if new score is better
+      if (parseFloat(leaderboardData.bestScore.toString()) > parseFloat(existing.bestScore.toString())) {
+        const [updated] = await db.update(challengeLeaderboards)
+          .set({
+            bestScore: leaderboardData.bestScore,
+            bestTime: leaderboardData.bestTime,
+            attemptCount: existing.attemptCount + 1,
+            lastAttemptAt: new Date(),
+          })
+          .where(eq(challengeLeaderboards.id, existing.id))
+          .returning();
+        return updated;
+      } else {
+        // Just update attempt count
+        const [updated] = await db.update(challengeLeaderboards)
+          .set({
+            attemptCount: existing.attemptCount + 1,
+            lastAttemptAt: new Date(),
+          })
+          .where(eq(challengeLeaderboards.id, existing.id))
+          .returning();
+        return updated;
+      }
+    } else {
+      // Create new entry
+      const [newEntry] = await db.insert(challengeLeaderboards)
+        .values(leaderboardData)
+        .returning();
+      return newEntry;
+    }
+  }
+
+  async getChallengeLeaderboard(challengeId: string, limit: number = 10): Promise<ChallengeLeaderboard[]> {
+    return await db.select().from(challengeLeaderboards)
+      .where(eq(challengeLeaderboards.challengeId, challengeId))
+      .orderBy(desc(challengeLeaderboards.bestScore), challengeLeaderboards.bestTime)
+      .limit(limit);
   }
 }
 

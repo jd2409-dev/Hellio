@@ -17,6 +17,8 @@ import StudyPlanner from "@/pages/study-planner";
 import PomodoroPage from "@/pages/pomodoro";
 import PdfDrivePage from "@/pages/pdf-drive";
 import TimeCapsule from "@/pages/time-capsule";
+import PeerChallenges from "@/pages/peer-challenges";
+import ChallengePlay from "@/pages/challenge-play";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -51,6 +53,8 @@ function Router() {
           <Route path="/pomodoro" component={PomodoroPage} />
           <Route path="/pdf-drive" component={PdfDrivePage} />
           <Route path="/time-capsule" component={TimeCapsule} />
+          <Route path="/peer-challenges" component={PeerChallenges} />
+          <Route path="/peer-challenges/:challengeId" component={ChallengePlay} />
         </>
       )}
       <Route component={NotFound} />
