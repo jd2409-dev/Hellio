@@ -1820,10 +1820,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const suggestedTitle = await suggestStoryTitle(concept);
         
-        res.json({
-          ...enhancedResult,
-          suggestedTitle,
-        });
+        // If video was created successfully, return it as the primary result
+        if (enhancedResult.success && enhancedResult.media_files.video_path) {
+          res.json({
+            ...enhancedResult,
+            suggestedTitle,
+            videoUrl: enhancedResult.media_files.video_path?.replace(/.*server\/public/, '') || null,
+            hasVideo: true
+          });
+        } else {
+          res.json({
+            ...enhancedResult,
+            suggestedTitle,
+            hasVideo: false
+          });
+        }
       } else {
         // Use basic TypeScript generation
         const scenes = await generateEducationalStory(concept, subject, difficulty);

@@ -32,6 +32,7 @@ import {
   Image
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { VideoPlayer } from '@/components/video-player';
 
 interface StoryScene {
   scene_number: number;
@@ -345,6 +346,7 @@ const StoryViewer = ({ story, onSave, onEdit }: {
                 className="bg-slate-700/50 border-slate-600 text-white text-xl font-bold mb-2"
               />
               <p className="text-slate-400">{story.concept}</p>
+              {story.hasVideo && <span className="text-nexus-green text-sm">✓ Video Generated</span>}
               <div className="flex gap-2 mt-2">
                 {story.subject && (
                   <Badge className="bg-blue-500/20 text-blue-400">
@@ -363,6 +365,16 @@ const StoryViewer = ({ story, onSave, onEdit }: {
               </div>
             </div>
           </div>
+          
+          {/* Video Player for Enhanced Mode */}
+          {story.hasVideo && story.videoUrl && (
+            <div className="mb-6">
+              <VideoPlayer 
+                src={story.videoUrl} 
+                className="w-full rounded-lg"
+              />
+            </div>
+          )}
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

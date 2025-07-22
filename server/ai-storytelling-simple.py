@@ -18,6 +18,9 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 from gtts import gTTS
 from dotenv import load_dotenv
+import imageio
+import numpy as np
+from pydub import AudioSegment
 
 # Load environment variables
 load_dotenv()
@@ -244,7 +247,7 @@ Focus on visual storytelling that teaches the concept effectively."""
             img.save(filepath)
             
             logger.info(f"Generated image for scene {scene_data['scene_number']}: {filename}")
-            return str(filepath.relative_to(Path.cwd()))
+            return str(filepath)
             
         except Exception as e:
             logger.error(f"Error generating scene image: {e}")
@@ -285,10 +288,79 @@ Focus on visual storytelling that teaches the concept effectively."""
             tts.save(str(filepath))
             
             logger.info(f"Generated audio for scene {scene_data['scene_number']}: {filename}")
-            return str(filepath.relative_to(Path.cwd()))
+            return str(filepath)
             
         except Exception as e:
             logger.error(f"Error generating scene audio: {e}")
+            return None
+
+    def create_video_from_scenes(self, scenes: List[Dict[str, Any]], story_id: str) -> str:
+        """Create a video from scenes using imageio"""
+        try:
+            video_filename = f"story_{story_id}.mp4"
+            video_path = self.output_dir / video_filename
+            
+            # Generate media for each scene
+            scene_data = []
+            for scene in scenes:
+                image_path = self.generate_scene_image(scene, story_id)
+                audio_path = self.generate_scene_audio(scene, story_id)
+                
+                if image_path and audio_path:
+                    scene_data.append({
+                        'image': str(Path(image_path)),
+                        'audio': str(Path(audio_path)),
+                        'scene': scene
+                    })
+            
+            if not scene_data:
+                logger.error("No scene media generated for video")
+                return None
+            
+            # Create video writer
+            writer = imageio.get_writer(str(video_path), fps=24)
+            
+            total_frames = 0
+            
+            for scene_info in scene_data:
+                try:
+                    # Load image
+                    img = imageio.imread(scene_info['image'])
+                    
+                    # Load audio to get duration
+                    audio = AudioSegment.from_mp3(scene_info['audio'])
+                    duration = len(audio) / 1000.0  # Convert to seconds
+                    
+                    # Calculate frames for this scene
+                    frames_for_scene = int(duration * 24)  # 24 fps
+                    
+                    # Write frames for this scene duration
+                    for _ in range(max(frames_for_scene, 24 * 3)):  # Minimum 3 seconds per scene
+                        writer.append_data(img)
+                        total_frames += 1
+                        
+                except Exception as e:
+                    logger.error(f"Error processing scene: {e}")
+                    # Add default frames if scene processing fails
+                    for _ in range(24 * 3):  # 3 seconds of default
+                        if len(scene_data) > 0:
+                            try:
+                                default_img = imageio.imread(scene_data[0]['image'])
+                                writer.append_data(default_img)
+                            except:
+                                pass
+            
+            writer.close()
+            
+            if total_frames > 0:
+                logger.info(f"Created video: {video_filename} with {total_frames} frames")
+                return str(video_path)
+            else:
+                logger.error("No frames written to video")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating video: {e}")
             return None
 
     def process_story_request(self, concept: str, subject: str = None, difficulty: str = None, story_id: str = None) -> Dict[str, Any]:
@@ -305,10 +377,11 @@ Focus on visual storytelling that teaches the concept effectively."""
             # Generate multimedia content
             media_files = {
                 'images': [],
-                'audio_files': []
+                'audio_files': [],
+                'video_path': None
             }
             
-            # Generate individual scene media
+            # Generate individual scene media and create video
             for scene in scenes:
                 image_path = self.generate_scene_image(scene, story_id)
                 audio_path = self.generate_scene_audio(scene, story_id)
@@ -317,6 +390,11 @@ Focus on visual storytelling that teaches the concept effectively."""
                     media_files['images'].append(image_path)
                 if audio_path:
                     media_files['audio_files'].append(audio_path)
+            
+            # Create combined video
+            video_path = self.create_video_from_scenes(scenes, story_id)
+            if video_path:
+                media_files['video_path'] = video_path
             
             # Prepare response
             result = {
@@ -340,7 +418,7 @@ Focus on visual storytelling that teaches the concept effectively."""
                 'error': str(e),
                 'story_id': story_id,
                 'scenes': self._create_fallback_story(concept),
-                'media_files': {'images': [], 'audio_files': []}
+                'media_files': {'images': [], 'audio_files': [], 'video_path': None}
             }
 
 def main():
