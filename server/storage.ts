@@ -13,8 +13,7 @@ import {
   studyPlans,
   studyPlanReminders,
   pomodoroSessions,
-  pdfDriveBooks,
-  userPdfLibrary,
+
   type User,
   type UpsertUser,
   type Subject,
@@ -40,10 +39,7 @@ import {
   type InsertStudyPlanReminder,
   type PomodoroSession,
   type InsertPomodoroSession,
-  type PdfDriveBook,
-  type InsertPdfDriveBook,
-  type UserPdfLibrary,
-  type InsertUserPdfLibrary,
+
   type TimeCapsule,
   type InsertTimeCapsule,
   type TimeCapsuleReminder,
@@ -59,12 +55,7 @@ import {
   peerChallenges,
   challengeAttempts,
   challengeLeaderboards,
-  type StoryCreation,
-  type InsertStoryCreation,
-  type StoryLike,
-  type InsertStoryLike,
-  storyCreations,
-  storyLikes,
+
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lte, sql } from "drizzle-orm";

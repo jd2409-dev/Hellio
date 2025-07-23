@@ -1,13 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from 'child_process';
-import { insertPomodoroSessionSchema, insertPdfDriveBookSchema, insertUserPdfLibrarySchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema, insertStoryCreationSchema } from "@shared/schema";
+import { insertPomodoroSessionSchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema } from "@shared/schema";
 import express from "express";
 import multer from "multer";
 import path from "path";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateEducationalStory, suggestStoryTitle, generateEnhancedStory } from "./services/storytelling";
+
 import { GoogleGenAI } from "@google/genai";
 import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
 import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
@@ -36,22 +36,7 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Serve video files directly with proper headers
-  app.get('/stories/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const filePath = path.join(process.cwd(), 'server/public/stories', filename);
-    
-    if (filename.endsWith('.mp4')) {
-      res.setHeader('Content-Type', 'video/mp4');
-      res.setHeader('Accept-Ranges', 'bytes');
-    } else if (filename.endsWith('.mp3')) {
-      res.setHeader('Content-Type', 'audio/mpeg');
-    } else if (filename.endsWith('.png')) {
-      res.setHeader('Content-Type', 'image/png');
-    }
-    
-    res.sendFile(filePath);
-  });
+
 
   // Auth middleware
   await setupAuth(app);

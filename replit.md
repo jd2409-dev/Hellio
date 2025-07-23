@@ -102,26 +102,10 @@ Key entities include:
 - **Results Sharing**: Social sharing functionality for challenge results and achievements
 - **Multi-format Export**: Challenges exportable as JSON with metadata for cross-platform compatibility
 
-### AI Educational Storytelling Assistant (Updated January 2025)
-- **Concept Transformation**: Converts any user-submitted concept into structured 4-scene animated story breakdowns
-- **Gemini AI Integration**: Uses advanced AI to generate educational narratives with visual descriptions, narration, and captions
-- **Scene Structure**: Each story contains exactly 4 scenes with scene_number, visual_description, narration, and caption fields
-- **Educational Focus**: Stories designed to teach concepts through engaging narrative and visual storytelling
-- **Subject Integration**: Optional subject and difficulty level selection for contextualized content generation
-- **Story Management**: Complete CRUD operations with PostgreSQL storage for user stories and community sharing
-- **Social Features**: Story sharing, liking system, and public/private visibility controls
-- **Gamification**: XP rewards (20 XP) and coins (10 coins) for creating and saving educational stories
-- **Export Options**: Stories downloadable as JSON files for cross-platform sharing and portability
-- **Community Library**: Browse public stories created by other users with like counts and engagement metrics
-
-### Internet Archive Book Integration (Updated January 2025)
-- **Archive.org Integration**: Replaced PDF Drive with Internet Archive's vast educational book collection
-- **Comprehensive Search**: Multi-field search across titles, subjects, creators, and descriptions for broader topic coverage
-- **Rich Metadata**: Displays book descriptions, download counts, publication years, and subject classifications
-- **Multiple Format Access**: Users access books through Archive.org where PDF, EPUB, and other formats are available
-- **Category Filtering**: Enhanced category mapping with related terms (e.g., mathematics includes calculus, algebra, geometry)
-- **Ethical Access**: Uses Archive.org's official API for legitimate access to educational resources
-- **Subject Integration**: Books can be saved to user libraries and associated with study subjects
+### Migration Notes (January 2025)
+- **Removed Features**: AI Educational Storytelling Assistant and PDF Drive integration have been removed from the codebase to streamline the platform and focus on core educational features
+- **Clean Architecture**: Codebase has been cleaned up to remove unused dependencies and maintain better performance
+- **Core Focus**: Platform now focuses on the essential educational features: quizzes, AI tutoring, gamification, time capsules, peer challenges, and study planning
 
 ### AI Study Planner (Updated January 2025)
 - **Calendar Interface**: Complete calendar system with multiple view modes (calendar, week, day)

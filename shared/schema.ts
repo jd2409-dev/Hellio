@@ -228,39 +228,7 @@ export const pomodoroSessions = pgTable("pomodoro_sessions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// PDF Drive Books table - for storing search results and user library
-export const pdfDriveBooks = pgTable("pdf_drive_books", {
-  id: serial("id").primaryKey(),
-  title: varchar("title").notNull(),
-  author: varchar("author"),
-  pages: integer("pages"),
-  year: varchar("year"),
-  size: varchar("size"),
-  extension: varchar("extension").default("pdf"),
-  preview: text("preview"),
-  downloadUrl: text("download_url"),
-  imageUrl: text("image_url"),
-  category: varchar("category"),
-  language: varchar("language").default("english"),
-  searchKeywords: jsonb("search_keywords").$type<string[]>().default([]),
-  popularity: integer("popularity").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
-// User PDF Drive Library - books saved by users
-export const userPdfLibrary = pgTable("user_pdf_library", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  bookId: integer("book_id").notNull().references(() => pdfDriveBooks.id),
-  subjectId: integer("subject_id").references(() => subjects.id),
-  status: varchar("status").notNull().default("saved"), // saved, downloaded, reading, completed
-  progress: integer("progress").default(0), // reading progress in percentage
-  notes: text("notes"),
-  rating: integer("rating"), // 1-5 star rating
-  addedAt: timestamp("added_at").defaultNow(),
-  lastAccessedAt: timestamp("last_accessed_at"),
-});
 
 // Time Capsule recordings - for recording concepts to future self
 export const timeCapsules = pgTable("time_capsules", {
@@ -338,28 +306,7 @@ export const challengeLeaderboards = pgTable("challenge_leaderboards", {
   lastAttemptAt: timestamp("last_attempt_at").defaultNow(),
 });
 
-// Story Creation tables for AI-powered educational storytelling
-export const storyCreations = pgTable("story_creations", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  title: varchar("title").notNull(),
-  concept: text("concept").notNull(), // Original user input
-  scenes: jsonb("scenes").notNull(), // Array of 4 scene objects
-  difficulty: varchar("difficulty"), // easy, medium, hard
-  subject: varchar("subject"), // Science, Math, History, etc.
-  tags: jsonb("tags").$type<string[]>().default([]),
-  isPublic: boolean("is_public").default(false),
-  likesCount: integer("likes_count").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
-export const storyLikes = pgTable("story_likes", {
-  id: serial("id").primaryKey(),
-  storyId: integer("story_id").notNull().references(() => storyCreations.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
 // Types
 export type StudyPlan = typeof studyPlans.$inferSelect;
@@ -368,10 +315,7 @@ export type StudyPlanReminder = typeof studyPlanReminders.$inferSelect;
 export type InsertStudyPlanReminder = typeof studyPlanReminders.$inferInsert;
 export type PomodoroSession = typeof pomodoroSessions.$inferSelect;
 export type InsertPomodoroSession = typeof pomodoroSessions.$inferInsert;
-export type PdfDriveBook = typeof pdfDriveBooks.$inferSelect;
-export type InsertPdfDriveBook = typeof pdfDriveBooks.$inferInsert;
-export type UserPdfLibrary = typeof userPdfLibrary.$inferSelect;
-export type InsertUserPdfLibrary = typeof userPdfLibrary.$inferInsert;
+
 export type TimeCapsule = typeof timeCapsules.$inferSelect;
 export type InsertTimeCapsule = typeof timeCapsules.$inferInsert;
 export type TimeCapsuleReminder = typeof timeCapsuleReminders.$inferSelect;
@@ -382,10 +326,7 @@ export type ChallengeAttempt = typeof challengeAttempts.$inferSelect;
 export type InsertChallengeAttempt = typeof challengeAttempts.$inferInsert;
 export type ChallengeLeaderboard = typeof challengeLeaderboards.$inferSelect;
 export type InsertChallengeLeaderboard = typeof challengeLeaderboards.$inferInsert;
-export type StoryCreation = typeof storyCreations.$inferSelect;
-export type InsertStoryCreation = typeof storyCreations.$inferInsert;
-export type StoryLike = typeof storyLikes.$inferSelect;
-export type InsertStoryLike = typeof storyLikes.$inferInsert;
+
 
 // Create schemas using drizzle-zod
 export const insertStudyPlanSchema = createInsertSchema(studyPlans).omit({
@@ -404,16 +345,7 @@ export const insertPomodoroSessionSchema = createInsertSchema(pomodoroSessions).
   createdAt: true,
 });
 
-export const insertPdfDriveBookSchema = createInsertSchema(pdfDriveBooks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
-export const insertUserPdfLibrarySchema = createInsertSchema(userPdfLibrary).omit({
-  id: true,
-  addedAt: true,
-});
 
 export const insertTimeCapsuleSchema = createInsertSchema(timeCapsules).omit({
   id: true,
@@ -441,16 +373,7 @@ export const insertChallengeLeaderboardSchema = createInsertSchema(challengeLead
   lastAttemptAt: true,
 });
 
-export const insertStoryCreationSchema = createInsertSchema(storyCreations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
-export const insertStoryLikeSchema = createInsertSchema(storyLikes).omit({
-  id: true,
-  createdAt: true,
-});
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -465,12 +388,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   aiMeetings: many(aiMeetings),
   studyPlans: many(studyPlans),
   pomodoroSessions: many(pomodoroSessions),
-  userPdfLibrary: many(userPdfLibrary),
   timeCapsules: many(timeCapsules),
   createdChallenges: many(peerChallenges),
   challengeAttempts: many(challengeAttempts),
-  storyCreations: many(storyCreations),
-  storyLikes: many(storyLikes),
+
 }));
 
 export const studyPlansRelations = relations(studyPlans, ({ one, many }) => ({
@@ -564,25 +485,7 @@ export const challengeLeaderboardsRelations = relations(challengeLeaderboards, (
   participant: one(users, { fields: [challengeLeaderboards.participantId], references: [users.id] }),
 }));
 
-export const storyCreationsRelations = relations(storyCreations, ({ one, many }) => ({
-  user: one(users, { fields: [storyCreations.userId], references: [users.id] }),
-  likes: many(storyLikes),
-}));
 
-export const storyLikesRelations = relations(storyLikes, ({ one }) => ({
-  story: one(storyCreations, { fields: [storyLikes.storyId], references: [storyCreations.id] }),
-  user: one(users, { fields: [storyLikes.userId], references: [users.id] }),
-}));
-
-export const pdfDriveBooksRelations = relations(pdfDriveBooks, ({ many }) => ({
-  userLibrary: many(userPdfLibrary),
-}));
-
-export const userPdfLibraryRelations = relations(userPdfLibrary, ({ one }) => ({
-  user: one(users, { fields: [userPdfLibrary.userId], references: [users.id] }),
-  book: one(pdfDriveBooks, { fields: [userPdfLibrary.bookId], references: [pdfDriveBooks.id] }),
-  subject: one(subjects, { fields: [userPdfLibrary.subjectId], references: [subjects.id] }),
-}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
