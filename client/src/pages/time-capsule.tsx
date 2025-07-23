@@ -66,7 +66,7 @@ export default function TimeCapsule() {
   const [growthInsights, setGrowthInsights] = useState("");
 
   // Fetch time capsules
-  const { data: timeCapsules = [], isLoading: isLoadingCapsules } = useQuery({
+  const { data: timeCapsules = [], isLoading: isLoadingCapsules } = useQuery<TimeCapsule[]>({
     queryKey: ['/api/time-capsules'],
   });
 
@@ -77,10 +77,7 @@ export default function TimeCapsule() {
 
   // Create time capsule mutation
   const createTimeCapsuleMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('/api/time-capsules', {
-      method: 'POST',
-      body: data,
-    }),
+    mutationFn: async (data: any) => apiRequest('POST', '/api/time-capsules', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/time-capsules'] });
       toast({
@@ -94,10 +91,7 @@ export default function TimeCapsule() {
   // Reflect on time capsule mutation
   const reflectMutation = useMutation({
     mutationFn: async ({ id, reflectionData }: { id: number; reflectionData: any }) =>
-      apiRequest(`/api/time-capsules/${id}/reflect`, {
-        method: 'POST',
-        body: reflectionData,
-      }),
+      apiRequest('POST', `/api/time-capsules/${id}/reflect`, reflectionData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/time-capsules'] });
       toast({
@@ -490,7 +484,7 @@ export default function TimeCapsule() {
                 <div className="animate-spin w-8 h-8 border-2 border-nexus-green border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-slate-400">Loading time capsules...</p>
               </div>
-            ) : timeCapsules.length === 0 ? (
+            ) : (timeCapsules as TimeCapsule[]).length === 0 ? (
               <div className="text-center py-8">
                 <BookOpen className="w-16 h-16 text-slate-600 mx-auto mb-4" />
                 <p className="text-slate-400 text-lg mb-2">No time capsules yet</p>
@@ -498,7 +492,7 @@ export default function TimeCapsule() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {timeCapsules.map((capsule: TimeCapsule) => (
+                {(timeCapsules as TimeCapsule[]).map((capsule: TimeCapsule) => (
                   <Card key={capsule.id} className="bg-slate-700/30 border-slate-600/50">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-3">
