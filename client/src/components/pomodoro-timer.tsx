@@ -335,15 +335,15 @@ export default function PomodoroTimer() {
             {/* Subject Selection */}
             <div className="flex justify-center">
               <Select 
-                value={selectedSubject?.toString() || ''} 
-                onValueChange={(value) => setSelectedSubject(value ? parseInt(value) : null)}
+                value={selectedSubject?.toString() || 'none'} 
+                onValueChange={(value) => setSelectedSubject(value === 'none' ? null : parseInt(value))}
                 disabled={isRunning}
               >
                 <SelectTrigger className="w-64 glass-effect border-nexus-green/20">
                   <SelectValue placeholder="Select a subject (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No subject</SelectItem>
+                  <SelectItem value="none">No subject</SelectItem>
                   {subjects.map((subject) => (
                     <SelectItem key={subject.id} value={subject.id.toString()}>
                       <div className="flex items-center gap-2">
