@@ -1273,6 +1273,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Time Capsule routes
+  app.get('/api/time-capsules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsules = await storage.getUserTimeCapsules(userId);
+      res.json(timeCapsules);
+    } catch (error) {
+      console.error("Time capsules fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch time capsules" });
+    }
+  });
+
+  app.post('/api/time-capsules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertTimeCapsuleSchema.parse(req.body);
+      
+      // Calculate reflection date
+      const reflectionDate = new Date();
+      reflectionDate.setDate(reflectionDate.getDate() + data.reflectionPeriod);
+      
+      const timeCapsule = await storage.createTimeCapsule({
+        ...data,
+        userId,
+        reflectionDate,
+      });
+
+      // Award XP for creating time capsule
+      const user = await storage.getUser(userId);
+      if (user) {
+        await storage.upsertUser({
+          ...user,
+          xp: (user.xp || 0) + 25,
+          coins: (user.coins || 0) + 5,
+        });
+      }
+
+      res.json(timeCapsule);
+    } catch (error) {
+      console.error("Time capsule creation error:", error);
+      res.status(500).json({ message: "Failed to create time capsule" });
+    }
+  });
+
+  app.post('/api/time-capsules/:id/reflect', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeCapsuleId = parseInt(req.params.id);
+      const { reflectionNotes, currentUnderstanding, growthInsights } = req.body;
+
+      // Verify ownership
+      const timeCapsule = await storage.getTimeCapsule(timeCapsuleId);
+      if (!timeCapsule || timeCapsule.userId !== userId) {
+        return res.status(404).json({ message: "Time capsule not found" });
+      }
+
+      const updatedCapsule = await storage.reflectOnTimeCapsule(timeCapsuleId, {
+        reflectionNotes,
+        currentUnderstanding,
+        growthInsights,
+      });
+
+      // Award XP for completing reflection
+      const user = await storage.getUser(userId);
+      if (user) {
+        await storage.upsertUser({
+          ...user,
+          xp: (user.xp || 0) + 50,
+          coins: (user.coins || 0) + 10,
+        });
+      }
+
+      res.json(updatedCapsule);
+    } catch (error) {
+      console.error("Time capsule reflection error:", error);
+      res.status(500).json({ message: "Failed to save reflection" });
+    }
+  });
+
   // Serve audio files
   app.use('/audio', express.static('public/audio'));
 
