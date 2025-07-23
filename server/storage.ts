@@ -126,13 +126,7 @@ export interface IStorage {
   updatePomodoroSession(id: number, data: Partial<InsertPomodoroSession>): Promise<PomodoroSession>;
   getPomodoroStats(userId: string): Promise<any>;
   
-  // PDF Drive operations
-  createPdfBook(book: InsertPdfDriveBook): Promise<PdfDriveBook>;
-  getPdfBook(id: number): Promise<PdfDriveBook | undefined>;
-  searchPdfBooks(query: string): Promise<PdfDriveBook[]>;
-  addBookToUserLibrary(data: InsertUserPdfLibrary): Promise<UserPdfLibrary>;
-  getUserPdfLibrary(userId: string): Promise<UserPdfLibrary[]>;
-  updateUserPdfLibraryItem(id: number, data: Partial<InsertUserPdfLibrary>): Promise<UserPdfLibrary>;
+
 
   // Time Capsule operations
   createTimeCapsule(capsule: InsertTimeCapsule): Promise<TimeCapsule>;
@@ -163,18 +157,7 @@ export interface IStorage {
   updateLeaderboard(leaderboard: InsertChallengeLeaderboard): Promise<ChallengeLeaderboard>;
   getChallengeLeaderboard(challengeId: string, limit?: number): Promise<ChallengeLeaderboard[]>;
 
-  // Story Creation operations
-  createStory(story: InsertStoryCreation): Promise<StoryCreation>;
-  getUserStories(userId: string): Promise<StoryCreation[]>;
-  getPublicStories(limit?: number): Promise<StoryCreation[]>;
-  getStoryById(id: number): Promise<StoryCreation | undefined>;
-  updateStory(id: number, data: Partial<InsertStoryCreation>): Promise<StoryCreation>;
-  deleteStory(id: number): Promise<void>;
-  
-  // Story Like operations
-  likeStory(storyId: number, userId: string): Promise<StoryLike>;
-  unlikeStory(storyId: number, userId: string): Promise<void>;
-  getStoryLikes(storyId: number): Promise<StoryLike[]>;
+
 }
 
 export class DatabaseStorage implements IStorage {
@@ -472,75 +455,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // PDF Drive operations
-  async createPdfBook(book: InsertPdfDriveBook): Promise<PdfDriveBook> {
-    const [created] = await db.insert(pdfDriveBooks).values(book).returning();
-    return created;
-  }
 
-  async getPdfBook(id: number): Promise<PdfDriveBook | undefined> {
-    const [book] = await db.select().from(pdfDriveBooks).where(eq(pdfDriveBooks.id, id));
-    return book;
-  }
-
-  async searchPdfBooks(query: string): Promise<PdfDriveBook[]> {
-    // This will be handled by the Python scraper, so this method mainly handles cached results
-    return db.select().from(pdfDriveBooks)
-      .where(eq(pdfDriveBooks.title, query)) // Simple search for now
-      .limit(20);
-  }
-
-  async addBookToUserLibrary(data: InsertUserPdfLibrary): Promise<UserPdfLibrary> {
-    const [added] = await db.insert(userPdfLibrary).values(data).returning();
-    return added;
-  }
-
-  async getUserPdfLibrary(userId: string): Promise<UserPdfLibrary[]> {
-    return db.select({
-      id: userPdfLibrary.id,
-      userId: userPdfLibrary.userId,
-      bookId: userPdfLibrary.bookId,
-      subjectId: userPdfLibrary.subjectId,
-      status: userPdfLibrary.status,
-      progress: userPdfLibrary.progress,
-      notes: userPdfLibrary.notes,
-      rating: userPdfLibrary.rating,
-      addedAt: userPdfLibrary.addedAt,
-      lastAccessedAt: userPdfLibrary.lastAccessedAt,
-      book: {
-        id: pdfDriveBooks.id,
-        title: pdfDriveBooks.title,
-        author: pdfDriveBooks.author,
-        pages: pdfDriveBooks.pages,
-        year: pdfDriveBooks.year,
-        size: pdfDriveBooks.size,
-        extension: pdfDriveBooks.extension,
-        preview: pdfDriveBooks.preview,
-        downloadUrl: pdfDriveBooks.downloadUrl,
-        imageUrl: pdfDriveBooks.imageUrl,
-        category: pdfDriveBooks.category,
-        language: pdfDriveBooks.language,
-      },
-      subject: {
-        id: subjects.id,
-        name: subjects.name,
-        color: subjects.color,
-      }
-    })
-    .from(userPdfLibrary)
-    .leftJoin(pdfDriveBooks, eq(userPdfLibrary.bookId, pdfDriveBooks.id))
-    .leftJoin(subjects, eq(userPdfLibrary.subjectId, subjects.id))
-    .where(eq(userPdfLibrary.userId, userId))
-    .orderBy(desc(userPdfLibrary.addedAt));
-  }
-
-  async updateUserPdfLibraryItem(id: number, data: Partial<InsertUserPdfLibrary>): Promise<UserPdfLibrary> {
-    const [updated] = await db.update(userPdfLibrary)
-      .set(data)
-      .where(eq(userPdfLibrary.id, id))
-      .returning();
-    return updated;
-  }
 
   // Time Capsule operations
   async createTimeCapsule(capsule: InsertTimeCapsule): Promise<TimeCapsule> {
@@ -725,81 +640,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  // Story Creation operations
-  async createStory(story: InsertStoryCreation): Promise<StoryCreation> {
-    const [newStory] = await db.insert(storyCreations).values(story).returning();
-    return newStory;
-  }
 
-  async getUserStories(userId: string): Promise<StoryCreation[]> {
-    return await db.select().from(storyCreations)
-      .where(eq(storyCreations.userId, userId))
-      .orderBy(desc(storyCreations.createdAt));
-  }
-
-  async getPublicStories(limit: number = 20): Promise<StoryCreation[]> {
-    return await db.select().from(storyCreations)
-      .where(eq(storyCreations.isPublic, true))
-      .orderBy(desc(storyCreations.likesCount), desc(storyCreations.createdAt))
-      .limit(limit);
-  }
-
-  async getStoryById(id: number): Promise<StoryCreation | undefined> {
-    const [story] = await db.select().from(storyCreations)
-      .where(eq(storyCreations.id, id));
-    return story;
-  }
-
-  async updateStory(id: number, data: Partial<InsertStoryCreation>): Promise<StoryCreation> {
-    const [updated] = await db.update(storyCreations)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(storyCreations.id, id))
-      .returning();
-    return updated;
-  }
-
-  async deleteStory(id: number): Promise<void> {
-    await db.delete(storyCreations).where(eq(storyCreations.id, id));
-  }
-
-  // Story Like operations
-  async likeStory(storyId: number, userId: string): Promise<StoryLike> {
-    // Check if already liked
-    const [existing] = await db.select().from(storyLikes)
-      .where(and(eq(storyLikes.storyId, storyId), eq(storyLikes.userId, userId)));
-
-    if (existing) {
-      return existing;
-    }
-
-    // Create new like
-    const [newLike] = await db.insert(storyLikes)
-      .values({ storyId, userId })
-      .returning();
-
-    // Update likes count
-    await db.update(storyCreations)
-      .set({ likesCount: sql`${storyCreations.likesCount} + 1` })
-      .where(eq(storyCreations.id, storyId));
-
-    return newLike;
-  }
-
-  async unlikeStory(storyId: number, userId: string): Promise<void> {
-    const deleted = await db.delete(storyLikes)
-      .where(and(eq(storyLikes.storyId, storyId), eq(storyLikes.userId, userId)));
-
-    // Update likes count
-    await db.update(storyCreations)
-      .set({ likesCount: sql`${storyCreations.likesCount} - 1` })
-      .where(eq(storyCreations.id, storyId));
-  }
-
-  async getStoryLikes(storyId: number): Promise<StoryLike[]> {
-    return await db.select().from(storyLikes)
-      .where(eq(storyLikes.storyId, storyId))
-      .orderBy(desc(storyLikes.createdAt));
-  }
 }
 
 export const storage = new DatabaseStorage();

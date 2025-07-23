@@ -103,9 +103,10 @@ Key entities include:
 - **Multi-format Export**: Challenges exportable as JSON with metadata for cross-platform compatibility
 
 ### Migration Notes (January 2025)
-- **Removed Features**: AI Educational Storytelling Assistant and PDF Drive integration have been removed from the codebase to streamline the platform and focus on core educational features
-- **Clean Architecture**: Codebase has been cleaned up to remove unused dependencies and maintain better performance
+- **Removed Features**: AI Educational Storytelling Assistant and PDF Drive integration have been completely removed from the codebase to streamline the platform and focus on core educational features
+- **Clean Architecture**: Codebase has been cleaned up to remove unused dependencies, routes, storage methods, and frontend components for better performance
 - **Core Focus**: Platform now focuses on the essential educational features: quizzes, AI tutoring, gamification, time capsules, peer challenges, and study planning
+- **Complete Cleanup**: All backend routes, database schemas, storage methods, frontend pages, and components related to PDF Drive and storytelling have been eliminated
 
 ### AI Study Planner (Updated January 2025)
 - **Calendar Interface**: Complete calendar system with multiple view modes (calendar, week, day)

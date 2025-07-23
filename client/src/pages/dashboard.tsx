@@ -312,22 +312,7 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          {/* AI Storytelling */}
-          <Link href="/storytelling">
-            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <BookOpen className="h-10 w-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4">AI Storytelling</h3>
-                <p className="text-slate-400 mb-6">Transform concepts into animated educational stories</p>
-                <Button className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 w-full">
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Create Story
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
+
         </div>
 
         {/* Additional Features Section */}
@@ -352,22 +337,7 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            {/* PDF Drive */}
-            <Link href="/pdf-drive">
-              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-teal-500/30 cursor-pointer hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-8 text-center">
-                  <div className="w-20 h-20 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <FileText className="h-10 w-10 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-4">PDF Drive</h3>
-                  <p className="text-slate-400 mb-6">Search and access millions of educational PDF books</p>
-                  <Button className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Browse Books
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+
 
             {/* Time Capsule */}
             <Link href="/time-capsule">
