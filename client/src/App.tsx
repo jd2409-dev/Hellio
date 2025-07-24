@@ -19,6 +19,7 @@ import TimeCapsule from "@/pages/time-capsule";
 import PeerChallenges from "@/pages/peer-challenges";
 import ChallengePlay from "@/pages/challenge-play";
 import SupabaseDemo from "@/pages/supabase-demo";
+import SupabaseAuth from "@/pages/supabase-auth";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -55,6 +56,7 @@ function Router() {
           <Route path="/peer-challenges" component={PeerChallenges} />
           <Route path="/peer-challenges/:challengeId" component={ChallengePlay} />
           <Route path="/supabase-demo" component={SupabaseDemo} />
+          <Route path="/supabase-auth" component={SupabaseAuth} />
         </>
       )}
       <Route component={NotFound} />

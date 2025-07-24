@@ -24,9 +24,11 @@ VITE_SUPABASE_ANON_KEY=your_anon_key_here
 
 **Note**: In Replit, you can add these in the Secrets tab (🔒 icon in the sidebar).
 
-## Step 3: Create the Users Table
+## Step 3: Create Database Tables
 
-In your Supabase SQL Editor, run this SQL to create the users table:
+In your Supabase SQL Editor, run this SQL to create the necessary tables:
+
+### Users Table (for CRUD demo)
 
 ```sql
 -- Create users table
@@ -68,14 +70,73 @@ CREATE POLICY "Allow all operations on users" ON users
     FOR ALL USING (true);
 ```
 
+### Authentication Setup (for auth demo)
+
+Authentication tables are automatically created by Supabase, but you need to configure:
+
+1. **Email Settings**: Go to Authentication → Settings → SMTP Settings
+2. **Enable Email Auth**: Make sure email authentication is enabled
+3. **Configure Redirect URLs**: Add your Replit domain to allowed redirect URLs
+
+```sql
+-- Optional: Create a profile table linked to auth.users
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  email TEXT,
+  first_name TEXT,
+  last_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for profiles (users can only see/edit their own profile)
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Create a trigger to automatically create a profile for new users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, first_name, last_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'firstName',
+    NEW.raw_user_meta_data->>'lastName'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+```
+
 ## Step 4: Test the Integration
 
-1. Access the demo page at `/supabase-demo` in your application
-2. Try creating, reading, updating, and deleting users
-3. Check your Supabase dashboard to see the data changes
+1. **CRUD Operations**: Access the demo page at `/supabase-demo` in your application
+   - Try creating, reading, updating, and deleting users
+   - Check your Supabase dashboard to see the data changes
 
-## Available CRUD Operations
+2. **Authentication**: Access the auth demo at `/supabase-auth` in your application
+   - Test user registration with email/password
+   - Try signing in and signing out
+   - Test password reset functionality
 
+## Available Operations
+
+### CRUD Operations
 The integration provides these functions in `client/src/lib/supabaseClient.ts`:
 
 - `userService.createUser(userData)` - Create a new user
@@ -85,6 +146,28 @@ The integration provides these functions in `client/src/lib/supabaseClient.ts`:
 - `userService.updateUser(id, updates)` - Update user data
 - `userService.deleteUser(id)` - Delete a user
 - `userService.searchUsers(query)` - Search users by name or email
+
+### Authentication Operations
+The integration provides these functions in `client/src/lib/supabaseClient.ts`:
+
+- `authService.signUp(email, password, userData)` - Register new user
+- `authService.signIn(email, password)` - Sign in user
+- `authService.signOut()` - Sign out current user
+- `authService.getCurrentUser()` - Get current authenticated user
+- `authService.getSession()` - Get current session
+- `authService.resetPassword(email)` - Send password reset email
+- `authService.onAuthStateChange(callback)` - Listen to auth changes
+
+### React Hook
+Use the `useSupabaseAuth()` hook for authentication state management:
+
+- `user` - Current authenticated user
+- `session` - Current session
+- `loading` - Loading state
+- `isAuthenticated` - Boolean auth status
+- `signIn(email, password)` - Sign in function
+- `signUp(email, password, userData)` - Sign up function
+- `signOut()` - Sign out function
 
 ## Example Usage
 

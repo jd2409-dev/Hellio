@@ -14,6 +14,120 @@ export const isSupabaseConfigured = () => {
   return supabase !== null
 }
 
+// Authentication functions
+export const authService = {
+  // Sign up with email and password
+  async signUp(email: string, password: string, userData?: { firstName?: string, lastName?: string }) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: userData
+        }
+      })
+      
+      return { data, error }
+    } catch (error) {
+      console.error('Error signing up:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Sign in with email and password
+  async signIn(email: string, password: string) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      
+      return { data, error }
+    } catch (error) {
+      console.error('Error signing in:', error)
+      return { data: null, error }
+    }
+  },
+
+  // Sign out
+  async signOut() {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { error } = await supabase.auth.signOut()
+      return { error }
+    } catch (error) {
+      console.error('Error signing out:', error)
+      return { error }
+    }
+  },
+
+  // Get current user
+  async getCurrentUser() {
+    if (!supabase) {
+      return { data: { user: null }, error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      return { data, error }
+    } catch (error) {
+      console.error('Error getting current user:', error)
+      return { data: { user: null }, error }
+    }
+  },
+
+  // Get current session
+  async getSession() {
+    if (!supabase) {
+      return { data: { session: null }, error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      return { data, error }
+    } catch (error) {
+      console.error('Error getting session:', error)
+      return { data: { session: null }, error }
+    }
+  },
+
+  // Listen to auth changes
+  onAuthStateChange(callback: (event: string, session: any) => void) {
+    if (!supabase) {
+      return { data: { subscription: null } }
+    }
+    
+    const { data } = supabase.auth.onAuthStateChange(callback)
+    return { data }
+  },
+
+  // Reset password
+  async resetPassword(email: string) {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured') }
+    }
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      return { error }
+    } catch (error) {
+      console.error('Error resetting password:', error)
+      return { error }
+    }
+  }
+}
+
 // User interface for type safety
 export interface User {
   id?: string
