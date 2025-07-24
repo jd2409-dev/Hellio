@@ -321,7 +321,7 @@ export class DatabaseStorage implements IStorage {
   
   // AI Meeting operations
   async createMeeting(meetingData: InsertAIMeeting): Promise<AIMeeting> {
-    const [meeting] = await db.insert(aiMeetings).values(meetingData).returning();
+    const [meeting] = await db.insert(aiMeetings).values([meetingData]).returning();
     return meeting;
   }
   
@@ -701,8 +701,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(quizAttempts.userId, userId),
-            sql`${quizAttempts.createdAt} >= ${today}`,
-            sql`${quizAttempts.createdAt} < ${tomorrow}`
+            sql`${quizAttempts.completedAt} >= ${today}`,
+            sql`${quizAttempts.completedAt} < ${tomorrow}`
           )
         ).limit(1)
     ]);
@@ -734,8 +734,8 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(quizAttempts.userId, userId),
-              sql`${quizAttempts.createdAt} >= ${yesterday}`,
-              sql`${quizAttempts.createdAt} < ${today}`
+              sql`${quizAttempts.completedAt} >= ${yesterday}`,
+              sql`${quizAttempts.completedAt} < ${today}`
             )
           ).limit(1)
       ]);
