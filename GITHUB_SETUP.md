@@ -68,18 +68,34 @@ git push -u origin main
    - `.gitignore` - Proper file exclusions
    - All source code in `client/`, `server/`, and `shared/` directories
 
-## Step 4: Set up GitHub Secrets (Optional)
+## Step 4: Set up Environment Variables
 
-If you want to use GitHub Actions for CI/CD:
+### For Local Development
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+2. Fill in your actual values in `.env`
+3. Never commit `.env` to Git (it's already in .gitignore)
+
+### For GitHub Actions CI/CD (Optional)
+If you want to use GitHub Actions:
 
 1. Go to your repository settings
-2. Click "Secrets and variables" → "Actions"
-3. Add these secrets:
-   - `DATABASE_URL`
-   - `GEMINI_API_KEY`
-   - `SESSION_SECRET`
-   - `VITE_SUPABASE_URL` (if using Supabase)
-   - `VITE_SUPABASE_ANON_KEY` (if using Supabase)
+2. Click "Secrets and variables" → "Actions"  
+3. Add these repository secrets:
+   - `DATABASE_URL` - Your PostgreSQL connection string
+   - `GEMINI_API_KEY` - Your Google Gemini API key
+   - `SESSION_SECRET` - Random string (32+ characters)
+   - `VITE_SUPABASE_URL` - Your Supabase project URL (optional)
+   - `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key (optional)
+
+### For Production Deployment
+Configure these environment variables on your hosting platform:
+- **Replit**: Use the Secrets tab
+- **Vercel**: Project Settings → Environment Variables
+- **Railway**: Variables tab in your project
+- **Heroku**: Settings → Config Vars
 
 ## Troubleshooting
 

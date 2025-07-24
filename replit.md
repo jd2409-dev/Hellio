@@ -168,18 +168,24 @@ Key entities include:
 ### AI Services
 - **Google Gemini AI**: Core AI functionality for content generation, tutoring, and text processing
 - **API Key Management**: Environment-based configuration for AI services
+- **Content Generation**: Quiz creation, tutoring responses, and study planning
 
 ### Database Services
-- **Neon PostgreSQL**: Serverless PostgreSQL database
+- **PostgreSQL**: Primary database with Drizzle ORM
+- **Neon Database**: Serverless PostgreSQL hosting option
+- **Supabase**: Alternative database with built-in authentication
 - **Connection Pooling**: Configured for optimal performance
 
-### Authentication
-- **Replit Auth**: OAuth integration for user authentication
-- **Session Storage**: PostgreSQL-backed session management
+### Authentication Systems
+- **Replit Auth**: OAuth integration for Replit environment
+- **Supabase Auth**: Email/password authentication with session management
+- **Session Storage**: PostgreSQL-backed session persistence
+- **Row Level Security**: Database-level access control
 
 ### File Processing
 - **PDF Handling**: Multer for file uploads with size and type validation
 - **AI Text Extraction**: Gemini AI for OCR and content parsing
+- **Media Support**: Audio/video recording for time capsules
 
 ## Deployment Strategy
 
@@ -200,8 +206,15 @@ Key entities include:
 ### Environment Configuration
 Required environment variables:
 - `DATABASE_URL`: PostgreSQL connection string
-- `GEMINI_API_KEY`: Google AI API key
-- `SESSION_SECRET`: Session encryption key
-- `REPL_ID`: Replit authentication identifier
+- `GEMINI_API_KEY`: Google Gemini AI API key
+- `SESSION_SECRET`: Session encryption key (32+ characters)
+- `REPL_ID`: Replit authentication identifier (auto-set)
+- `REPLIT_DOMAINS`: Replit domain configuration (auto-set)
+
+Optional environment variables (for Supabase integration):
+- `VITE_SUPABASE_URL`: Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Supabase anonymous key
+
+All environment variables are documented in `.env.example` with examples and setup instructions in `ENVIRONMENT_SETUP.md`.
 
 The application is designed for deployment on Replit but can be adapted for other platforms with minimal configuration changes.

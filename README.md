@@ -63,15 +63,28 @@ A fully gamified, AI-driven academic assistant designed to help students master 
 - Replit environment (recommended)
 
 ### Environment Variables
-Create the following environment variables in your Replit Secrets:
+Copy `.env.example` to `.env` and fill in your actual values:
 
 ```bash
-DATABASE_URL=your_postgresql_connection_string
-GEMINI_API_KEY=your_google_gemini_api_key
-SESSION_SECRET=your_session_secret_key
-VITE_SUPABASE_URL=your_supabase_project_url (optional)
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key (optional)
+# Copy the example file
+cp .env.example .env
 ```
+
+**Required Environment Variables:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `GEMINI_API_KEY` - Google Gemini AI API key  
+- `SESSION_SECRET` - Random string for session encryption (32+ characters)
+
+**Optional Environment Variables:**
+- `VITE_SUPABASE_URL` - Supabase project URL (for Supabase integration)
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key (for Supabase integration)
+
+**Auto-configured by Replit:**
+- `REPL_ID` - Automatically set by Replit
+- `REPLIT_DOMAINS` - Automatically set by Replit
+- `PORT` - Application port (defaults to 5000)
+
+**In Replit:** Add these to your Secrets tab (🔒 icon in sidebar)
 
 ### Installation & Setup
 
