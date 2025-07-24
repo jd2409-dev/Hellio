@@ -157,6 +157,15 @@ export interface IStorage {
   updateLeaderboard(leaderboard: InsertChallengeLeaderboard): Promise<ChallengeLeaderboard>;
   getChallengeLeaderboard(challengeId: string, limit?: number): Promise<ChallengeLeaderboard[]>;
 
+  // Analytics and Stats operations
+  getUserStats(userId: string): Promise<any>;
+  updateStudyStreak(userId: string): Promise<void>;
+  getTotalStudyTime(userId: string): Promise<number>;
+  getSubjectProgress(userId: string): Promise<any[]>;
+  calculateAverageQuizScore(userId: string): Promise<number>;
+  getTotalAchievements(userId: string): Promise<number>;
+  trackStudyActivity(userId: string, activityType: string, duration: number, subjectId?: number): Promise<void>;
+
 
 }
 
@@ -640,7 +649,239 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  // Analytics and Stats operations
+  async getUserStats(userId: string): Promise<any> {
+    const user = await this.getUser(userId);
+    if (!user) return null;
 
+    // Calculate total study time from all activities
+    const totalStudyTime = await this.getTotalStudyTime(userId);
+    
+    // Calculate average quiz score
+    const averageQuizScore = await this.calculateAverageQuizScore(userId);
+    
+    // Get total achievements
+    const totalAchievements = await this.getTotalAchievements(userId);
+    
+    // Update and get current study streak
+    await this.updateStudyStreak(userId);
+    const updatedUser = await this.getUser(userId);
+
+    return {
+      xp: updatedUser?.xp || 0,
+      coins: updatedUser?.coins || 0,
+      level: updatedUser?.level || 1,
+      studyStreak: updatedUser?.studyStreak || 0,
+      totalStudyTime,
+      averageQuizScore,
+      totalAchievements,
+    };
+  }
+
+  async updateStudyStreak(userId: string): Promise<void> {
+    // Check if user has any activity today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Check pomodoro sessions, quiz attempts, and study plans completed today
+    const todayActivity = await Promise.all([
+      db.select().from(pomodoroSessions)
+        .where(
+          and(
+            eq(pomodoroSessions.userId, userId),
+            eq(pomodoroSessions.status, 'completed'),
+            sql`${pomodoroSessions.completedAt} >= ${today}`,
+            sql`${pomodoroSessions.completedAt} < ${tomorrow}`
+          )
+        ).limit(1),
+      
+      db.select().from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.userId, userId),
+            sql`${quizAttempts.createdAt} >= ${today}`,
+            sql`${quizAttempts.createdAt} < ${tomorrow}`
+          )
+        ).limit(1)
+    ]);
+
+    const hasActivityToday = todayActivity.some(activity => activity.length > 0);
+    
+    const user = await this.getUser(userId);
+    if (!user) return;
+
+    let newStreak = user.studyStreak || 0;
+    
+    if (hasActivityToday) {
+      // Check if streak should continue (activity yesterday or today is first day)
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const yesterdayActivity = await Promise.all([
+        db.select().from(pomodoroSessions)
+          .where(
+            and(
+              eq(pomodoroSessions.userId, userId),
+              eq(pomodoroSessions.status, 'completed'),
+              sql`${pomodoroSessions.completedAt} >= ${yesterday}`,
+              sql`${pomodoroSessions.completedAt} < ${today}`
+            )
+          ).limit(1),
+        
+        db.select().from(quizAttempts)
+          .where(
+            and(
+              eq(quizAttempts.userId, userId),
+              sql`${quizAttempts.createdAt} >= ${yesterday}`,
+              sql`${quizAttempts.createdAt} < ${today}`
+            )
+          ).limit(1)
+      ]);
+
+      const hasActivityYesterday = yesterdayActivity.some(activity => activity.length > 0);
+      
+      if (hasActivityYesterday || newStreak === 0) {
+        newStreak += 1;
+      } else {
+        newStreak = 1; // Reset streak if gap found
+      }
+    }
+
+    await this.upsertUser({
+      ...user,
+      studyStreak: newStreak,
+    });
+  }
+
+  async getTotalStudyTime(userId: string): Promise<number> {
+    // Get time from completed pomodoro sessions (in seconds)
+    const pomodoroTime = await db.select({
+      totalTime: sql<number>`COALESCE(SUM(${pomodoroSessions.actualDuration}), 0)`
+    })
+    .from(pomodoroSessions)
+    .where(
+      and(
+        eq(pomodoroSessions.userId, userId),
+        eq(pomodoroSessions.status, 'completed')
+      )
+    );
+
+    // Get time from quiz attempts (convert to seconds)
+    const quizTime = await db.select({
+      totalTime: sql<number>`COALESCE(SUM(${quizAttempts.timeSpent}), 0)`
+    })
+    .from(quizAttempts)
+    .where(eq(quizAttempts.userId, userId));
+
+    // Get time from AI meetings
+    const meetingTime = await db.select({
+      totalTime: sql<number>`COALESCE(SUM(${aiMeetings.duration} * 60), 0)`
+    })
+    .from(aiMeetings)
+    .where(
+      and(
+        eq(aiMeetings.userId, userId),
+        eq(aiMeetings.status, 'completed')
+      )
+    );
+
+    const totalSeconds = (pomodoroTime[0]?.totalTime || 0) + 
+                        (quizTime[0]?.totalTime || 0) + 
+                        (meetingTime[0]?.totalTime || 0);
+    
+    return Math.round(totalSeconds / 60); // Return in minutes
+  }
+
+  async getSubjectProgress(userId: string): Promise<any[]> {
+    const subjects = await this.getSubjects();
+    const userSubjects = await this.getUserSubjects(userId);
+    
+    const progress = await Promise.all(subjects.map(async (subject) => {
+      // Calculate progress based on activities
+      const quizCount = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.userId, userId),
+            eq(quizAttempts.subject, subject.name)
+          )
+        );
+
+      const avgScore = await db.select({ 
+        avg: sql<number>`COALESCE(AVG(CAST(${quizAttempts.score} AS DECIMAL)), 0)` 
+      })
+      .from(quizAttempts)
+      .where(
+        and(
+          eq(quizAttempts.userId, userId),
+          eq(quizAttempts.subject, subject.name)
+        )
+      );
+
+      const studyTime = await db.select({
+        time: sql<number>`COALESCE(SUM(${pomodoroSessions.actualDuration}), 0)`
+      })
+      .from(pomodoroSessions)
+      .where(
+        and(
+          eq(pomodoroSessions.userId, userId),
+          eq(pomodoroSessions.subjectId, subject.id),
+          eq(pomodoroSessions.status, 'completed')
+        )
+      );
+
+      const userSubject = userSubjects.find(us => us.subjectId === subject.id);
+      
+      return {
+        ...subject,
+        progress: Math.min(Math.round((avgScore[0]?.avg || 0)), 100),
+        averageScore: Math.round(avgScore[0]?.avg || 0),
+        studyTime: Math.round((studyTime[0]?.time || 0) / 60), // minutes
+        quizCount: quizCount[0]?.count || 0,
+      };
+    }));
+
+    return progress;
+  }
+
+  async calculateAverageQuizScore(userId: string): Promise<number> {
+    const result = await db.select({ 
+      avg: sql<number>`COALESCE(AVG(CAST(${quizAttempts.score} AS DECIMAL)), 0)` 
+    })
+    .from(quizAttempts)
+    .where(eq(quizAttempts.userId, userId));
+
+    return Math.round(result[0]?.avg || 0);
+  }
+
+  async getTotalAchievements(userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`COUNT(*)` })
+      .from(userAchievements)
+      .where(eq(userAchievements.userId, userId));
+
+    return result[0]?.count || 0;
+  }
+
+  async trackStudyActivity(userId: string, activityType: string, duration: number, subjectId?: number): Promise<void> {
+    // Update study streak
+    await this.updateStudyStreak(userId);
+    
+    // Award XP based on activity
+    const user = await this.getUser(userId);
+    if (user) {
+      const xpGain = Math.ceil(duration / 10); // 1 XP per 10 seconds
+      const coinGain = Math.ceil(duration / 60); // 1 coin per minute
+      
+      await this.upsertUser({
+        ...user,
+        xp: (user.xp || 0) + xpGain,
+        coins: (user.coins || 0) + coinGain,
+        level: Math.floor(((user.xp || 0) + xpGain) / 1000) + 1,
+      });
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
