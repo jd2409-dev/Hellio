@@ -18,6 +18,7 @@ import PomodoroPage from "@/pages/pomodoro";
 import TimeCapsule from "@/pages/time-capsule";
 import PeerChallenges from "@/pages/peer-challenges";
 import ChallengePlay from "@/pages/challenge-play";
+import SupabaseDemo from "@/pages/supabase-demo";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -53,6 +54,7 @@ function Router() {
           <Route path="/time-capsule" component={TimeCapsule} />
           <Route path="/peer-challenges" component={PeerChallenges} />
           <Route path="/peer-challenges/:challengeId" component={ChallengePlay} />
+          <Route path="/supabase-demo" component={SupabaseDemo} />
         </>
       )}
       <Route component={NotFound} />
