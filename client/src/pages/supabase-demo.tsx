@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { userService, type User } from '@/lib/supabaseClient'
+import { userService, type User, isSupabaseConfigured } from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { Trash2, Edit, Search, Plus, Users, Database } from 'lucide-react'
+import { Trash2, Edit, Search, Plus, Users, Database, AlertCircle, CheckCircle } from 'lucide-react'
 
 export default function SupabaseDemo() {
   const [users, setUsers] = useState<User[]>([])
@@ -150,12 +150,46 @@ export default function SupabaseDemo() {
     setLoading(false)
   }
 
+  const isConfigured = isSupabaseConfigured()
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-2 mb-6">
         <Database className="h-6 w-6" />
         <h1 className="text-2xl font-bold">Supabase CRUD Demo</h1>
       </div>
+
+      {/* Configuration Status */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 mb-4">
+            {isConfigured ? (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+            )}
+            <span className="font-medium">
+              Supabase Status: {isConfigured ? 'Connected' : 'Not Configured'}
+            </span>
+          </div>
+          
+          {!isConfigured && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+              <p className="text-sm text-orange-800 dark:text-orange-200 mb-2">
+                Supabase is not configured. To use this demo, you need to:
+              </p>
+              <ol className="text-sm text-orange-800 dark:text-orange-200 space-y-1 ml-4 list-decimal">
+                <li>Create a Supabase project at <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline">supabase.com</a></li>
+                <li>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your Replit Secrets</li>
+                <li>Create the users table in your Supabase database</li>
+              </ol>
+              <p className="text-sm text-orange-800 dark:text-orange-200 mt-2">
+                See <code>SUPABASE_SETUP.md</code> for detailed instructions.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create New User */}
       <Card>
@@ -227,7 +261,7 @@ export default function SupabaseDemo() {
           </div>
           <Button 
             onClick={handleCreateUser} 
-            disabled={loading}
+            disabled={loading || !isConfigured}
             className="mt-4"
           >
             {loading ? 'Creating...' : 'Create User'}
@@ -251,10 +285,10 @@ export default function SupabaseDemo() {
               placeholder="Search by name or email..."
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button onClick={handleSearch} disabled={loading}>
+            <Button onClick={handleSearch} disabled={loading || !isConfigured}>
               Search
             </Button>
-            <Button onClick={loadUsers} variant="outline" disabled={loading}>
+            <Button onClick={loadUsers} variant="outline" disabled={loading || !isConfigured}>
               Show All
             </Button>
           </div>

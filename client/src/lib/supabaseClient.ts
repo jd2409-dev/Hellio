@@ -4,12 +4,15 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('Supabase credentials not found. Make sure to set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.')
-}
+// Create Supabase client only if credentials are available
+export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null
 
-// Create Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// Helper function to check if Supabase is configured
+export const isSupabaseConfigured = () => {
+  return supabase !== null
+}
 
 // User interface for type safety
 export interface User {
@@ -30,6 +33,10 @@ export interface User {
 export const userService = {
   // Create a new user
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -47,6 +54,10 @@ export const userService = {
 
   // Get all users
   async getAllUsers() {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -63,6 +74,10 @@ export const userService = {
 
   // Get user by ID
   async getUserById(id: string) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -80,6 +95,10 @@ export const userService = {
 
   // Get user by email
   async getUserByEmail(email: string) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -97,6 +116,10 @@ export const userService = {
 
   // Update user
   async updateUser(id: string, updates: Partial<User>) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -115,6 +138,10 @@ export const userService = {
 
   // Delete user
   async deleteUser(id: string) {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { error } = await supabase
         .from('users')
@@ -131,6 +158,10 @@ export const userService = {
 
   // Search users by name or email
   async searchUsers(query: string) {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') }
+    }
+    
     try {
       const { data, error } = await supabase
         .from('users')
