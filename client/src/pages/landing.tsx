@@ -5,7 +5,7 @@ import { Brain, BookOpen, Trophy, Zap, Target, Users } from "lucide-react";
 
 export default function Landing() {
   const handleAuth = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/supabase-auth";
   };
 
   return (

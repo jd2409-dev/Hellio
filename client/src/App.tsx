@@ -39,7 +39,10 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/supabase-auth" component={SupabaseAuth} />
+        </>
       ) : (
         <>
           <Route path="/" component={Dashboard} />
@@ -56,7 +59,6 @@ function Router() {
           <Route path="/peer-challenges" component={PeerChallenges} />
           <Route path="/peer-challenges/:challengeId" component={ChallengePlay} />
           <Route path="/supabase-demo" component={SupabaseDemo} />
-          <Route path="/supabase-auth" component={SupabaseAuth} />
         </>
       )}
       <Route component={NotFound} />

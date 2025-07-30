@@ -1,16 +1,26 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { Request, Response } from "express";
+import { createServer, Server } from "http";
 import { spawn } from 'child_process';
-import { insertPomodoroSessionSchema, insertTimeCapsuleSchema, insertTimeCapsuleReminderSchema, insertPeerChallengeSchema, insertChallengeAttemptSchema } from "@shared/schema";
+import { insertPomodoroSessionSchema, insertTimeCapsuleSchema } from "@shared/schema";
 import express from "express";
+// User type for authentication
+export interface User {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  profileImageUrl?: string
+  user_metadata?: any
+}
+
+export type RequestWithUser = Request & { user: User };
 import multer from "multer";
-import path from "path";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 
 import { GoogleGenAI } from "@google/genai";
-import { extractTextFromPDF, summarizeTextbook, searchTextbookContent } from "./services/pdfProcessor";
-import { generateQuiz, generateAdaptiveQuiz, calculateQuizScore } from "./services/quizGenerator";
+import { extractTextFromPDF, searchTextbookContent } from "./services/pdfProcessor";
+import { generateQuiz, calculateQuizScore } from "./services/quizGenerator";
 import { 
   generateImprovementSuggestions,
   parseMeetingRequest, 
@@ -23,51 +33,40 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
-    }
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Only PDF files are allowed'));
   },
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
-
-
-  // Auth middleware
+export async function registerRoutes(app: express.Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      // Award "First Steps" achievement to new users
-      if (user && !user.xp) {
-        const achievements = await storage.getAchievements();
-        const firstStepsAchievement = achievements.find(a => a.name === 'First Steps');
-        if (firstStepsAchievement) {
-          const userAchievements = await storage.getUserAchievements(userId);
-          const hasFirstSteps = userAchievements.some(ua => ua.achievementId === firstStepsAchievement.id);
-          if (!hasFirstSteps) {
-            await storage.unlockAchievement(userId, firstStepsAchievement.id);
-            // Award initial XP and coins
-            await storage.upsertUser({
-              ...user,
-              xp: 100,
-              coins: 50,
-              level: 1,
-            });
-          }
-        }
+      const user = req.user as User;
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const userId = user.id;
+      let dbUser = await storage.getUser(userId);
+
+      if (!dbUser) {
+        // Create a default user if not found in storage
+        dbUser = {
+          id: userId,
+          email: user.email,
+          firstName: user.firstName || 'Guest',
+          lastName: user.lastName || 'User',
+          profileImageUrl: user.user_metadata?.avatar_url || '',
+          xp: 0,
+          coins: 0,
+          level: 1,
+        };
+        await storage.upsertUser(dbUser);
       }
-      
-      res.json(user);
+      res.json(dbUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -75,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default subjects
-  app.post('/api/initialize', isAuthenticated, async (req: any, res) => {
+  app.post('/api/initialize', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const defaultSubjects = [
         { name: 'Mathematics', description: 'Algebra, Calculus, Geometry', icon: 'fas fa-calculator', color: '#3B82F6' },
@@ -85,14 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'English', description: 'Literature, Grammar, Writing', icon: 'fas fa-book', color: '#F59E0B' },
         { name: 'History', description: 'World History, Ancient Civilizations', icon: 'fas fa-landmark', color: '#6B7280' },
       ];
-
       const subjects = await storage.getSubjects();
       if (subjects.length === 0) {
-        for (const subject of defaultSubjects) {
-          await storage.createSubject(subject);
-        }
+        for (const subject of defaultSubjects) await storage.createSubject(subject);
       }
-
       res.json({ message: 'Initialization complete' });
     } catch (error) {
       console.error("Initialization error:", error);
@@ -101,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Subject routes
-  app.get('/api/subjects', isAuthenticated, async (req, res) => {
+  app.get('/api/subjects', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const subjects = await storage.getSubjects();
       res.json(subjects);
@@ -110,9 +105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user-subjects', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user-subjects', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const userSubjects = await storage.getUserSubjects(userId);
       res.json(userSubjects);
     } catch (error) {
@@ -120,20 +116,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Tutor routes
-  app.post('/api/ai-chat', isAuthenticated, async (req: any, res) => {
+  // AI Tutor chat route
+  app.post('/api/ai-chat', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      const { message, history } = req.body;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const { message } = req.body;
 
-      // Get or create chat session
       let chatSession = await storage.getChatSession(userId);
       const messages: any[] = (chatSession?.messages as any[]) || [];
-
-      // Add user message
       messages.push({ role: 'user', content: message, timestamp: new Date() });
 
-      // Generate AI response
       const systemPrompt = `You are an AI tutor for NexusLearn AI, a gamified learning platform. 
       Help students understand concepts across all subjects. Be encouraging, clear, and educational.
       If asked about topics outside academics, politely redirect to educational content.`;
@@ -145,9 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        config: {
-          systemInstruction: systemPrompt,
-        },
+        config: { systemInstruction: systemPrompt },
         contents: [
           ...conversationHistory,
           { role: 'user', parts: [{ text: message }] }
@@ -155,11 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const aiResponse = response.text || "I'm here to help with your studies!";
-
-      // Add AI response
       messages.push({ role: 'assistant', content: aiResponse, timestamp: new Date() });
-
-      // Update chat session
       await storage.updateChatSession(userId, messages);
 
       res.json({ response: aiResponse, messages });
@@ -169,57 +156,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Textbook upload routes
-  app.post('/api/textbooks/upload', isAuthenticated, upload.single('textbook'), async (req: any, res) => {
+  // Textbook upload route
+  app.post('/api/textbooks/upload', isAuthenticated, upload.single('textbook'), async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const file = req.file;
       const { subjectId } = req.body;
 
-      console.log('Textbook upload attempt:', {
-        userId,
-        fileSize: file?.size,
-        fileName: file?.originalname,
-        subjectId
-      });
+      if (!file) return res.status(400).json({ message: "No file uploaded" });
 
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      // Save initial textbook record without extracted text first
       const textbook = await storage.createTextbook({
         userId,
         filename: `${Date.now()}_${file.originalname}`,
         originalName: file.originalname,
         subjectId: subjectId ? parseInt(subjectId) : null,
-        extractedText: null, // Process separately to avoid timeout
+        extractedText: null,
       });
 
-      console.log('Textbook saved to database:', textbook.id);
-
-      // Process PDF in background (can take time)
       try {
-        console.log('Starting PDF text extraction...');
         const extractedText = await extractTextFromPDF(file.buffer, file.originalname);
-        console.log('PDF text extracted, length:', extractedText?.length);
-        
-        // Update textbook with extracted text
-        const updatedTextbook = await storage.updateTextbook(textbook.id, {
-          extractedText,
-        });
-
-        console.log('Textbook updated with extracted text');
+        const updatedTextbook = await storage.updateTextbook(textbook.id, { extractedText });
         res.json(updatedTextbook);
       } catch (extractError) {
         console.error('PDF extraction error:', extractError);
-        // Return textbook record even if extraction fails
-        res.json({ 
-          ...textbook, 
-          extractionError: 'PDF text extraction failed, but file uploaded successfully'
-        });
+        res.json({ ...textbook, extractionError: 'PDF text extraction failed, but file uploaded successfully' });
       }
-
     } catch (error) {
       console.error("Textbook upload error:", error);
       res.status(500).json({ message: "Failed to upload textbook" });
@@ -227,27 +189,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate quiz from textbook
-  app.post('/api/textbooks/generate-quiz', isAuthenticated, async (req: any, res) => {
+  app.post('/api/textbooks/generate-quiz', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { textbookId, questionType, numQuestions = 10 } = req.body;
 
       const textbook = await storage.getTextbook(textbookId);
-      if (!textbook || textbook.userId !== userId) {
-        return res.status(404).json({ message: "Textbook not found" });
-      }
-
-      if (!textbook.extractedText) {
-        return res.status(400).json({ message: "Textbook content not processed yet" });
-      }
+      if (!textbook || textbook.userId !== userId) return res.status(404).json({ message: "Textbook not found" });
+      if (!textbook.extractedText) return res.status(400).json({ message: "Textbook content not processed yet" });
 
       const { generateTextbookQuiz } = await import('./services/textbookExplainer');
-      const quiz = await generateTextbookQuiz(
-        textbook.extractedText, 
-        questionType, 
-        numQuestions
-      );
-
+      const quiz = await generateTextbookQuiz(textbook.extractedText, questionType, numQuestions);
       res.json(quiz);
     } catch (error) {
       console.error("Textbook quiz generation error:", error);
@@ -256,23 +209,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI explainer for textbook
-  app.post('/api/textbooks/explain', isAuthenticated, async (req: any, res) => {
+  app.post('/api/textbooks/explain', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { textbookId } = req.body;
 
       const textbook = await storage.getTextbook(textbookId);
-      if (!textbook || textbook.userId !== userId) {
-        return res.status(404).json({ message: "Textbook not found" });
-      }
-
-      if (!textbook.extractedText) {
-        return res.status(400).json({ message: "Textbook content not processed yet" });
-      }
+      if (!textbook || textbook.userId !== userId) return res.status(404).json({ message: "Textbook not found" });
+      if (!textbook.extractedText) return res.status(400).json({ message: "Textbook content not processed yet" });
 
       const { explainTextbook } = await import('./services/textbookExplainer');
       const explanation = await explainTextbook(textbook.extractedText);
-
       res.json({ explanation });
     } catch (error) {
       console.error("Textbook explanation error:", error);
@@ -280,9 +228,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/textbooks', isAuthenticated, async (req: any, res) => {
+  // Get user textbooks
+  app.get('/api/textbooks', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const textbooks = await storage.getUserTextbooks(userId);
       res.json(textbooks);
     } catch (error) {
@@ -290,20 +240,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/textbooks/:id/search', isAuthenticated, async (req: any, res) => {
+  // Search textbook content
+  app.post('/api/textbooks/:id/search', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { id } = req.params;
       const { query } = req.body;
 
       const textbook = await storage.getTextbook(parseInt(id));
-      if (!textbook || textbook.userId !== userId) {
-        return res.status(404).json({ message: "Textbook not found" });
-      }
-
-      if (!textbook.extractedText) {
-        return res.status(400).json({ message: "Textbook content not processed yet" });
-      }
+      if (!textbook || textbook.userId !== userId) return res.status(404).json({ message: "Textbook not found" });
+      if (!textbook.extractedText) return res.status(400).json({ message: "Textbook content not processed yet" });
 
       const searchResult = await searchTextbookContent(textbook.extractedText, query);
       res.json({ result: searchResult });
@@ -313,10 +260,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quiz routes
-  app.post('/api/quizzes/generate', isAuthenticated, async (req: any, res) => {
+  // Generate quiz route
+  app.post('/api/quizzes/generate', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { subject, difficulty = 'medium', numQuestions = 10, topic, grade, gradeName, questionType, marks } = req.body;
 
       const quiz = await generateQuiz(subject, difficulty, numQuestions, topic, {
@@ -326,7 +274,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         marks
       });
 
-      // Save quiz to database
       const savedQuiz = await storage.createQuiz({
         userId,
         subjectId: 1, // Default subject for now
@@ -343,16 +290,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/quizzes/:id/submit', isAuthenticated, async (req: any, res) => {
+  // Submit quiz by ID
+  app.post('/api/quizzes/:id/submit', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { id } = req.params;
       const { answers } = req.body;
 
       const quiz = await storage.getQuiz(parseInt(id));
-      if (!quiz) {
-        return res.status(404).json({ message: "Quiz not found" });
-      }
+      if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
       const result = calculateQuizScore(answers, {
         title: quiz.title,
@@ -365,16 +312,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createQuizAttempt({
         userId,
         quizId: parseInt(id),
-        answers,
+        questionType: quiz.questionType || 'mcq',
+        subject: quiz.title.split(' ')[0] || 'General',
+        difficulty: quiz.difficulty || 'medium',
+        questions: quiz.questions,
+        answers: JSON.stringify(answers),
         score: result.score.toString(),
       });
 
-      // Update user XP and coins based on performance
+      // Update user XP and coins
       const user = await storage.getUser(userId);
       if (user) {
-        const xpGain = Math.floor(result.score * 2); // 2 XP per percentage point
+        const xpGain = Math.floor(result.score * 2);
         const coinGain = result.score >= 80 ? 50 : result.score >= 60 ? 25 : 10;
-
         await storage.upsertUser({
           ...user,
           xp: (user.xp || 0) + xpGain,
@@ -391,65 +341,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced quiz submission route
-  app.post('/api/quizzes/submit', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quizzes/submit', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { quizId, answers, timeSpent, questionType, subject, difficulty } = req.body;
 
-      // For textbook-generated quizzes, quizId might be the quiz object directly
       let quizData;
-      let actualQuizId = null;
+      let actualQuizId: number | null = null;
       let quizSubject = subject || 'General';
       let quizDifficulty = difficulty || 'medium';
       let quizQuestionType = questionType || 'mcq';
 
       if (typeof quizId === 'object') {
         quizData = quizId;
-        // Extract metadata from quiz object
-        quizSubject = quizData.subject || subject || 'General';
-        quizDifficulty = quizData.difficulty || difficulty || 'medium';
-        quizQuestionType = quizData.questionType || questionType || 'mcq';
+        quizSubject = quizData.subject || quizSubject;
+        quizDifficulty = quizData.difficulty || quizDifficulty;
+        quizQuestionType = quizData.questionType || quizQuestionType;
       } else {
         actualQuizId = quizId;
         const quiz = await storage.getQuiz(quizId);
-        if (!quiz) {
-          return res.status(404).json({ message: "Quiz not found" });
-        }
+        if (!quiz) return res.status(404).json({ message: "Quiz not found" });
         quizData = {
-          questions: JSON.parse(quiz.questions),
-          questionType: quiz.questionType || questionType
+          questions: JSON.parse(quiz.questions as string),
+          questionType: quiz.questionType || quizQuestionType,
         };
-        // Extract metadata from stored quiz
-        quizSubject = quiz.title.split(' ')[0] || 'General';
-        quizDifficulty = quiz.difficulty || 'medium';
-        quizQuestionType = quiz.questionType || questionType || 'mcq';
+        quizSubject = quiz.title.split(' ')[0] || quizSubject;
+        quizDifficulty = quiz.difficulty || quizDifficulty;
+        quizQuestionType = quiz.questionType || quizQuestionType;
       }
 
       const parsedQuestions = quizData.questions;
       let correct = 0;
 
-      // Calculate score
       parsedQuestions.forEach((question: any, index: number) => {
         const userAnswer = answers[index];
         const correctAnswer = question.correctAnswer || question.modelAnswer;
-        
+
         if (userAnswer && correctAnswer) {
-          // Convert both to strings and normalize
           const userAnswerStr = String(userAnswer).toLowerCase().trim();
           const correctAnswerStr = String(correctAnswer).toLowerCase().trim();
-          
-          // For MCQ and assertion-reason, exact match
+
           if (quizQuestionType === 'mcq' || quizQuestionType === 'assertion-reason') {
-            if (userAnswerStr === correctAnswerStr) {
-              correct++;
-            }
-          }
-          // For other types, flexible matching
-          else {
-            if (userAnswerStr.includes(correctAnswerStr) || 
-                correctAnswerStr.includes(userAnswerStr)) {
-              correct++;
-            }
+            if (userAnswerStr === correctAnswerStr) correct++;
+          } else {
+            if (userAnswerStr.includes(correctAnswerStr) || correctAnswerStr.includes(userAnswerStr)) correct++;
           }
         }
       });
@@ -458,7 +394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const xpGained = Math.max(10, Math.round(score * 0.5 + (correct * 5)));
       const coinsGained = Math.max(1, Math.round(score / 20));
 
-      // Always save quiz attempt with comprehensive data
       await storage.createQuizAttempt({
         userId,
         quizId: actualQuizId,
@@ -471,18 +406,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeSpent: timeSpent || 0,
       });
 
-      // Track study session for analytics
       const { analyticsService } = await import("./services/analyticsService");
       const subjectRecord = await storage.getSubjectByName(quizSubject);
       await analyticsService.trackStudySession({
         userId,
         subjectId: subjectRecord?.id || null,
         activityType: 'quiz',
-        duration: timeSpent || 60, // Default 1 minute if no time provided
+        duration: timeSpent || 60,
         completedAt: new Date(),
       });
 
-      // Update user XP and coins
       const currentUser = await storage.getUser(userId);
       if (currentUser) {
         await storage.upsertUser({
@@ -492,17 +425,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Check for achievements
       const achievements = [];
-      if (score === 100) {
-        achievements.push({ name: "Perfect Score", description: "Got 100% on a quiz!" });
-      }
-      if (score >= 80) {
-        achievements.push({ name: "High Achiever", description: "Scored 80% or higher!" });
-      }
-      if (correct >= 5) {
-        achievements.push({ name: "Quiz Master", description: "Answered 5 or more questions correctly!" });
-      }
+      if (score === 100) achievements.push({ name: "Perfect Score", description: "Got 100% on a quiz!" });
+      if (score >= 80) achievements.push({ name: "High Achiever", description: "Scored 80% or higher!" });
+      if (correct >= 5) achievements.push({ name: "Quiz Master", description: "Answered 5 or more questions correctly!" });
 
       res.json({
         score,
@@ -520,11 +446,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/quizzes', isAuthenticated, async (req: any, res) => {
+  // Get quizzes
+  app.get('/api/quizzes', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      const { subjectId } = req.query;
-      
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const subjectId = req.query.subjectId as string | undefined;
       const quizzes = await storage.getUserQuizzes(userId, subjectId ? parseInt(subjectId) : undefined);
       res.json(quizzes);
     } catch (error) {
@@ -532,16 +459,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User stats routes - now using real analytics data
-  app.get('/api/user/stats', isAuthenticated, async (req: any, res) => {
+  // User stats
+  app.get('/api/user/stats', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const stats = await storage.getUserStats(userId);
-      
-      if (!stats) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
+      if (!stats) return res.status(404).json({ message: 'User not found' });
       res.json(stats);
     } catch (error) {
       console.error('User stats error:', error);
@@ -549,10 +473,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Subject progress endpoint - real data based on user activity
-  app.get('/api/subjects/progress', isAuthenticated, async (req: any, res) => {
+  // Subject progress
+  app.get('/api/subjects/progress', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const progress = await storage.getSubjectProgress(userId);
       res.json(progress);
     } catch (error) {
@@ -561,65 +486,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quiz reflection endpoint - past results and improvement suggestions
-  app.get('/api/user/reflection', isAuthenticated, async (req: any, res) => {
+  // Quiz reflection
+  app.get('/api/user/reflection', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Get all quiz attempts with detailed results
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const quizAttempts = await storage.getUserQuizAttempts(userId);
-      
-      if (quizAttempts.length === 0) {
-        return res.json(null);
-      }
-      
-      const recentAttempts = quizAttempts.slice(-10); // Last 10 attempts
-      
-      // Calculate performance patterns
-      const subjectPerformance = {};
-      const difficultyPerformance = {};
-      const questionTypePerformance = {};
-      let commonMistakes = [];
-      
+      if (quizAttempts.length === 0) return res.json(null);
+
+      const recentAttempts = quizAttempts.slice(-10);
+
+      const subjectPerformance: Record<string, { total: number; attempts: number }> = {};
+      const difficultyPerformance: Record<string, { total: number; attempts: number }> = {};
+      const questionTypePerformance: Record<string, { total: number; attempts: number }> = {};
+      let commonMistakes: any[] = [];
+
       for (const attempt of quizAttempts) {
         const score = parseFloat(attempt.score);
         const subject = attempt.subject || 'General';
         const difficulty = attempt.difficulty || 'medium';
         const questionType = attempt.questionType || 'mcq';
-        
-        // Track subject performance
-        if (!subjectPerformance[subject]) {
-          subjectPerformance[subject] = { total: 0, attempts: 0 };
-        }
+
+        // Track performances
+        if (!subjectPerformance[subject]) subjectPerformance[subject] = { total: 0, attempts: 0 };
         subjectPerformance[subject].attempts++;
         subjectPerformance[subject].total += score;
-        
-        // Track difficulty performance
-        if (!difficultyPerformance[difficulty]) {
-          difficultyPerformance[difficulty] = { total: 0, attempts: 0 };
-        }
+
+        if (!difficultyPerformance[difficulty]) difficultyPerformance[difficulty] = { total: 0, attempts: 0 };
         difficultyPerformance[difficulty].attempts++;
         difficultyPerformance[difficulty].total += score;
-        
-        // Track question type performance
-        if (!questionTypePerformance[questionType]) {
-          questionTypePerformance[questionType] = { total: 0, attempts: 0 };
-        }
+
+        if (!questionTypePerformance[questionType]) questionTypePerformance[questionType] = { total: 0, attempts: 0 };
         questionTypePerformance[questionType].attempts++;
         questionTypePerformance[questionType].total += score;
-        
-        // Analyze answers for common mistakes (only recent attempts to avoid too much data)
+
         if (recentAttempts.includes(attempt) && attempt.answers && attempt.questions) {
           try {
             const answers = JSON.parse(attempt.answers);
             const questions = JSON.parse(attempt.questions);
-            
-            questions.forEach((question, index) => {
+
+            questions.forEach((question: any, index: number) => {
               const userAnswer = answers[index];
               const correctAnswer = question.correctAnswer || question.modelAnswer;
-              
-              if (userAnswer && correctAnswer && 
-                  String(userAnswer).toLowerCase().trim() !== String(correctAnswer).toLowerCase().trim()) {
+
+              if (userAnswer && correctAnswer &&
+                String(userAnswer).toLowerCase().trim() !== String(correctAnswer).toLowerCase().trim()) {
                 commonMistakes.push({
                   subject,
                   difficulty,
@@ -638,14 +550,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
-      // Generate improvement suggestions using AI
+
       const improvementSuggestions = await generateImprovementSuggestions(
         subjectPerformance,
         difficultyPerformance,
-        commonMistakes.slice(-5) // Last 5 mistakes
+        commonMistakes.slice(-5)
       );
-      
+
       res.json({
         recentAttempts: recentAttempts.map(attempt => ({
           ...attempt,
@@ -654,10 +565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjectPerformance,
         difficultyPerformance,
         questionTypePerformance,
-        commonMistakes: commonMistakes.slice(-15), // Last 15 mistakes
+        commonMistakes: commonMistakes.slice(-15),
         improvementSuggestions,
         totalAttempts: quizAttempts.length,
-        averageScore: quizAttempts.length > 0 
+        averageScore: quizAttempts.length > 0
           ? quizAttempts.reduce((sum, attempt) => sum + parseFloat(attempt.score), 0) / quizAttempts.length
           : 0
       });
@@ -667,14 +578,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User achievements endpoint
-  app.get('/api/user/achievements', isAuthenticated, async (req: any, res) => {
+  // User achievements
+  app.get('/api/user/achievements', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const userAchievements = await storage.getUserAchievements(userId);
       const allAchievements = await storage.getAchievements();
-      
-      // Add earned status to achievements
+
       const achievementsWithStatus = allAchievements.map(achievement => ({
         ...achievement,
         earned: userAchievements.some(ua => ua.achievementId === achievement.id),
@@ -689,11 +601,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics endpoint
-  app.get('/api/analytics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/analytics', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { analyticsService } = await import("./services/analyticsService");
-      
       const analyticsData = await analyticsService.getAnalyticsData(userId);
       res.json(analyticsData);
     } catch (error) {
@@ -702,10 +614,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Meeting routes
-  app.get('/api/meetings', isAuthenticated, async (req: any, res) => {
+  // Meetings routes
+  app.get('/api/meetings', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const meetings = await storage.getUserMeetings(userId);
       res.json(meetings);
     } catch (error) {
@@ -714,24 +627,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/meetings/create', isAuthenticated, async (req: any, res) => {
+  app.post('/api/meetings/create', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { request } = req.body;
+      if (!request) return res.status(400).json({ message: 'Meeting request is required' });
 
-      if (!request) {
-        return res.status(400).json({ message: 'Meeting request is required' });
-      }
-
-      // Parse the meeting request using AI
       const meetingData = await parseMeetingRequest(request);
-      
-      // Create the meeting in database
-      const meeting = await storage.createMeeting({
-        userId,
-        ...meetingData,
-      });
-
+      const meeting = await storage.createMeeting({ userId, ...meetingData });
       res.json(meeting);
     } catch (error) {
       console.error('Meeting creation error:', error);
@@ -739,32 +643,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/meetings/:meetingId/start', isAuthenticated, async (req: any, res) => {
+  app.post('/api/meetings/:meetingId/start', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const meetingId = parseInt(req.params.meetingId);
 
-      // Get the meeting
       const meeting = await storage.getMeeting(meetingId);
-      if (!meeting || meeting.userId !== userId) {
-        return res.status(404).json({ message: 'Meeting not found' });
-      }
+      if (!meeting || meeting.userId !== userId) return res.status(404).json({ message: 'Meeting not found' });
 
-      // Update meeting status to active
       const updatedMeeting = await storage.updateMeetingStatus(meetingId, 'active');
 
-      // Track study session for starting a meeting
       const { analyticsService } = await import("./services/analyticsService");
       const subjectRecord = await storage.getSubjectByName(meeting.subject);
       await analyticsService.trackStudySession({
         userId,
         subjectId: subjectRecord?.id || null,
         activityType: 'ai_meeting',
-        duration: meeting.duration * 60, // Convert minutes to seconds
+        duration: meeting.duration * 60,
         completedAt: new Date(),
       });
 
-      // Generate initial welcome message
       const initialMessage = await generateInitialMeetingMessage({
         topic: meeting.topic,
         subject: meeting.subject,
@@ -772,81 +671,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         agenda: meeting.agenda,
       });
 
-      // Save the initial message
       await storage.createMeetingMessage({
         meetingId,
         role: 'assistant',
         content: initialMessage,
       });
 
-      // Get all messages for the meeting
       const messages = await storage.getMeetingMessages(meetingId);
 
-      res.json({
-        meeting: updatedMeeting,
-        initialMessages: messages,
-      });
+      res.json({ meeting: updatedMeeting, initialMessages: messages });
     } catch (error) {
       console.error('Meeting start error:', error);
       res.status(500).json({ message: 'Failed to start meeting' });
     }
   });
 
-  app.post('/api/meetings/chat', isAuthenticated, async (req: any, res) => {
+  app.post('/api/meetings/chat', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { message, meetingId } = req.body;
+      if (!message || !meetingId) return res.status(400).json({ message: 'Message and meetingId are required' });
 
-      if (!message || !meetingId) {
-        return res.status(400).json({ message: 'Message and meetingId are required' });
-      }
-
-      // Verify meeting ownership
       const meeting = await storage.getMeeting(meetingId);
-      if (!meeting || meeting.userId !== userId) {
-        return res.status(404).json({ message: 'Meeting not found' });
-      }
+      if (!meeting || meeting.userId !== userId) return res.status(404).json({ message: 'Meeting not found' });
 
-      // Get previous messages for context
       const previousMessages = await storage.getMeetingMessages(meetingId);
 
-      // Generate AI response
       const aiResponse = await generateMeetingResponse(message, {
         topic: meeting.topic,
         subject: meeting.subject,
         grade: meeting.grade,
         agenda: meeting.agenda,
-        previousMessages: previousMessages.slice(-6), // Last 6 messages for context
+        previousMessages: previousMessages.slice(-6),
       });
 
-      // Save user message first
-      await storage.createMeetingMessage({
-        meetingId,
-        role: 'user',
-        content: message,
-      });
+      await storage.createMeetingMessage({ meetingId, role: 'user', content: message });
+      const aiMessage = await storage.createMeetingMessage({ meetingId, role: 'assistant', content: aiResponse });
 
-      // Save AI response
-      const aiMessage = await storage.createMeetingMessage({
-        meetingId,
-        role: 'assistant',
-        content: aiResponse,
-      });
-
-      // Track additional study session time for chat interaction (30 seconds per message exchange)
       const { analyticsService } = await import("./services/analyticsService");
       const subjectRecord = await storage.getSubjectByName(meeting.subject);
       await analyticsService.trackStudySession({
         userId,
         subjectId: subjectRecord?.id || null,
         activityType: 'ai_chat',
-        duration: 30, // 30 seconds per chat exchange
+        duration: 30,
         completedAt: new Date(),
       });
 
-      res.json({
-        messages: [aiMessage],
-      });
+      res.json({ messages: [aiMessage] });
     } catch (error) {
       console.error('Meeting chat error:', error);
       res.status(500).json({ message: 'Failed to send message' });
@@ -854,36 +727,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Lesson Panel - Create Jitsi meeting with AI bot
-  app.post('/api/create-meeting', isAuthenticated, async (req: any, res) => {
+  app.post('/api/create-meeting', isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { topic } = req.body;
+      if (!topic) return res.status(400).json({ message: 'Topic is required' });
 
-      if (!topic) {
-        return res.status(400).json({ message: 'Topic is required' });
-      }
-
-      // Check for HF_TOKEN
       const hfToken = process.env.HF_TOKEN;
-      if (!hfToken) {
-        return res.status(500).json({ message: 'Hugging Face token not configured' });
-      }
+      if (!hfToken) return res.status(500).json({ message: 'Hugging Face token not configured' });
 
-      console.log(`Creating AI lesson meeting for topic: ${topic}`);
-
-      // Use Python subprocess to create the AI live classroom
       const pythonProcess = spawn('python3', ['server/ai-classroom-simple.py', topic, hfToken]);
 
       let output = '';
       let errorOutput = '';
       let responseHandled = false;
 
-      pythonProcess.stdout.on('data', (data: Buffer) => {
-        output += data.toString();
-      });
-
-      pythonProcess.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-      });
+      pythonProcess.stdout.on('data', (data: Buffer) => { output += data.toString(); });
+      pythonProcess.stderr.on('data', (data: Buffer) => { errorOutput += data.toString(); });
 
       pythonProcess.on('close', (code: number) => {
         if (responseHandled) return;
@@ -904,20 +765,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Set timeout for the request
       const timeoutId = setTimeout(() => {
         if (responseHandled) return;
         responseHandled = true;
-        
         pythonProcess.kill();
         res.status(408).json({ message: 'Request timeout' });
-      }, 30000); // 30 second timeout
+      }, 30000);
 
-      // Clean up timeout if process completes
-      pythonProcess.on('close', () => {
-        clearTimeout(timeoutId);
-      });
-
+      pythonProcess.on('close', () => clearTimeout(timeoutId));
     } catch (error) {
       console.error('Create meeting error:', error);
       res.status(500).json({ message: 'Failed to create meeting' });
@@ -925,11 +780,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Study Planner API Routes
-  
-  // Get user's study plans
-  app.get('/api/study-plans', isAuthenticated, async (req: any, res) => {
+
+  app.get('/api/study-plans', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const studyPlans = await storage.getUserStudyPlans(userId);
       res.json(studyPlans);
     } catch (error) {
@@ -938,12 +793,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new study plan
-  app.post('/api/study-plans', isAuthenticated, async (req: any, res) => {
+  app.post('/api/study-plans', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Validate request data
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const planData = {
         userId,
         subjectId: parseInt(req.body.subjectId),
@@ -965,12 +819,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate AI study plan
-  app.post('/api/study-plans/generate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/study-plans/generate', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const { generateAIStudyPlan, generateStudyPlanSummary } = await import("./services/studyPlanGenerator");
-      
+
       const request = {
         subjectId: parseInt(req.body.subjectId),
         examType: req.body.examType,
@@ -980,10 +835,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dailyStudyHours: parseInt(req.body.dailyStudyHours),
       };
 
-      // Generate AI study plan
       const aiPlan = await generateAIStudyPlan(request);
-      
-      // Create study plans in database
+
       const createdPlans = [];
       for (const item of aiPlan) {
         const planData = {
@@ -1002,9 +855,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const createdPlan = await storage.createStudyPlan(planData);
         createdPlans.push(createdPlan);
 
-        // Create reminders if needed
         if (planData.plannedDate > new Date()) {
-          const reminderTime = new Date(planData.plannedDate.getTime() - 30 * 60 * 1000); // 30 min before
+          const reminderTime = new Date(planData.plannedDate.getTime() - 30 * 60 * 1000);
           if (reminderTime > new Date()) {
             await storage.createStudyPlanReminder({
               studyPlanId: createdPlan.id,
@@ -1017,7 +869,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Generate summary
       const summary = await generateStudyPlanSummary(aiPlan);
 
       res.json({
@@ -1031,17 +882,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update study plan
-  app.patch('/api/study-plans/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/study-plans/:id', isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const planId = parseInt(req.params.id);
-      const updateData = req.body;
       
-      // Remove fields that shouldn't be updated directly
-      delete updateData.userId;
-      delete updateData.createdAt;
+      const plan = await storage.getStudyPlan(planId);
+      if (!plan || plan.userId !== userId) {
+        return res.status(404).json({ message: "Study plan not found" });
+      }
       
-      const updatedPlan = await storage.updateStudyPlan(planId, updateData);
+      const updatedPlan = await storage.updateStudyPlan(planId, req.body);
       res.json(updatedPlan);
     } catch (error) {
       console.error("Update study plan error:", error);
@@ -1049,10 +901,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete study plan
-  app.delete('/api/study-plans/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/study-plans/:id', isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const planId = parseInt(req.params.id);
+      
+      const plan = await storage.getStudyPlan(planId);
+      if (!plan || plan.userId !== userId) {
+        return res.status(404).json({ message: "Study plan not found" });
+      }
+      
       await storage.deleteStudyPlan(planId);
       res.json({ message: "Study plan deleted successfully" });
     } catch (error) {
@@ -1061,53 +920,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mark study plan as completed
-  app.post('/api/study-plans/:id/complete', isAuthenticated, async (req: any, res) => {
+  // Pomodoro Timer Routes
+  app.get('/api/pomodoro', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const planId = parseInt(req.params.id);
-      const updatedPlan = await storage.updateStudyPlan(planId, {
-        status: 'completed',
-        completedAt: new Date(),
-      });
-
-      // Award XP for completing study plan
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (user) {
-        const xpGained = Math.floor(updatedPlan.duration / 15); // 1 XP per 15 minutes
-        await storage.updateUserXP(userId, user.xp + xpGained, user.coins + Math.floor(xpGained / 2));
-        
-        // Track study session
-        const { analyticsService } = await import("./services/analyticsService");
-        await analyticsService.trackStudySession({
-          userId,
-          subjectId: updatedPlan.subjectId,
-          activityType: 'study_plan',
-          duration: updatedPlan.duration * 60, // Convert to seconds
-          completedAt: new Date(),
-        });
-      }
-
-      res.json(updatedPlan);
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const sessions = await storage.getUserPomodoroSessions(userId);
+      res.json(sessions);
     } catch (error) {
-      console.error("Complete study plan error:", error);
-      res.status(500).json({ message: "Failed to complete study plan" });
+      console.error("Get pomodoro sessions error:", error);
+      res.status(500).json({ message: "Failed to fetch pomodoro sessions" });
     }
   });
 
-  // Pomodoro Timer Routes
-  
-  // Create a pomodoro session
-  app.post('/api/pomodoro/sessions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pomodoro', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      const sessionData = insertPomodoroSessionSchema.parse({
-        ...req.body,
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const sessionData = {
         userId,
-        startedAt: new Date(),
-        status: 'active',
-      });
-
+        subjectId: req.body.subjectId ? parseInt(req.body.subjectId) : null,
+        sessionType: req.body.sessionType || 'work',
+        duration: parseInt(req.body.duration),
+        status: 'pending',
+      };
+      
       const session = await storage.createPomodoroSession(sessionData);
       res.json(session);
     } catch (error) {
@@ -1116,180 +954,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a pomodoro session (pause, complete, etc.)
-  app.patch('/api/pomodoro/sessions/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/pomodoro/:id', isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const sessionId = parseInt(req.params.id);
-      const updateData = req.body;
-
-      // Set appropriate timestamps
-      if (updateData.status === 'completed') {
-        updateData.completedAt = new Date();
+      
+      const session = await storage.getPomodoroSession(sessionId);
+      if (!session || session.userId !== userId) {
+        return res.status(404).json({ message: "Pomodoro session not found" });
       }
-
-      const session = await storage.updatePomodoroSession(sessionId, updateData);
-
-      // Award XP for completed work sessions
-      if (updateData.status === 'completed' && session.sessionType === 'work') {
-        const userId = req.user.claims.sub;
-        const user = await storage.getUser(userId);
-        if (user) {
-          const xpGained = Math.floor(session.duration * 0.8); // ~0.8 XP per minute
-          await storage.upsertUser({
-            ...user,
-            xp: (user.xp || 0) + xpGained,
-            coins: (user.coins || 0) + Math.floor(xpGained / 3),
-          });
-        }
-      }
-
-      res.json(session);
+      
+      const updatedSession = await storage.updatePomodoroSession(sessionId, req.body);
+      res.json(updatedSession);
     } catch (error) {
       console.error("Update pomodoro session error:", error);
       res.status(500).json({ message: "Failed to update pomodoro session" });
     }
   });
 
-  // Get pomodoro stats
-  app.get('/api/pomodoro/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pomodoro/stats', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req as RequestWithUser).user?.id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const stats = await storage.getPomodoroStats(userId);
       res.json(stats);
     } catch (error) {
       console.error("Get pomodoro stats error:", error);
-      res.status(500).json({ message: "Failed to get pomodoro stats" });
-    }
-  });
-
-  // Get weekly pomodoro stats
-  app.get('/api/pomodoro/weekly-stats', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const sessions = await storage.getUserPomodoroSessions(userId);
-      
-      // Filter sessions from the last 7 days
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      const weeklySessions = sessions.filter(session => 
-        session.createdAt && new Date(session.createdAt) >= weekAgo && 
-        session.status === 'completed'
-      );
-      
-      const totalSessions = weeklySessions.length;
-      const totalFocusTime = weeklySessions
-        .filter(s => s.sessionType === 'work')
-        .reduce((acc, s) => acc + (s.actualDuration || s.duration * 60), 0);
-      
-      const hours = Math.floor(totalFocusTime / 3600);
-      const minutes = Math.floor((totalFocusTime % 3600) / 60);
-      
-      res.json({
-        totalSessions,
-        totalFocusTime: `${hours}h ${minutes}m`,
-        averageSession: totalSessions > 0 ? `${Math.floor(totalFocusTime / totalSessions / 60)}m` : '0m',
-      });
-    } catch (error) {
-      console.error("Get weekly pomodoro stats error:", error);
-      res.status(500).json({ message: "Failed to get weekly stats" });
-    }
-  });
-
-  // Get recent pomodoro sessions
-  app.get('/api/pomodoro/recent-sessions', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const sessions = await storage.getUserPomodoroSessions(userId);
-      res.json(sessions.slice(0, 10)); // Return last 10 sessions
-    } catch (error) {
-      console.error("Get recent pomodoro sessions error:", error);
-      res.status(500).json({ message: "Failed to get recent sessions" });
-    }
-  });
-
-  // Time Capsule routes
-  app.get('/api/time-capsules', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const timeCapsules = await storage.getUserTimeCapsules(userId);
-      res.json(timeCapsules);
-    } catch (error) {
-      console.error("Time capsules fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch time capsules" });
-    }
-  });
-
-  app.post('/api/time-capsules', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const data = insertTimeCapsuleSchema.parse(req.body);
-      
-      // Calculate reflection date
-      const reflectionDate = new Date();
-      reflectionDate.setDate(reflectionDate.getDate() + data.reflectionPeriod);
-      
-      const timeCapsule = await storage.createTimeCapsule({
-        ...data,
-        userId,
-        reflectionDate,
-      });
-
-      // Award XP for creating time capsule
-      const user = await storage.getUser(userId);
-      if (user) {
-        await storage.upsertUser({
-          ...user,
-          xp: (user.xp || 0) + 25,
-          coins: (user.coins || 0) + 5,
-        });
-      }
-
-      res.json(timeCapsule);
-    } catch (error) {
-      console.error("Time capsule creation error:", error);
-      res.status(500).json({ message: "Failed to create time capsule" });
-    }
-  });
-
-  app.post('/api/time-capsules/:id/reflect', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const timeCapsuleId = parseInt(req.params.id);
-      const { reflectionNotes, currentUnderstanding, growthInsights } = req.body;
-
-      // Verify ownership
-      const timeCapsule = await storage.getTimeCapsule(timeCapsuleId);
-      if (!timeCapsule || timeCapsule.userId !== userId) {
-        return res.status(404).json({ message: "Time capsule not found" });
-      }
-
-      const updatedCapsule = await storage.reflectOnTimeCapsule(timeCapsuleId, {
-        reflectionNotes,
-        currentUnderstanding,
-        growthInsights,
-      });
-
-      // Award XP for completing reflection
-      const user = await storage.getUser(userId);
-      if (user) {
-        await storage.upsertUser({
-          ...user,
-          xp: (user.xp || 0) + 50,
-          coins: (user.coins || 0) + 10,
-        });
-      }
-
-      res.json(updatedCapsule);
-    } catch (error) {
-      console.error("Time capsule reflection error:", error);
-      res.status(500).json({ message: "Failed to save reflection" });
+      res.status(500).json({ message: "Failed to fetch pomodoro stats" });
     }
   });
 
   // Serve audio files
   app.use('/audio', express.static('public/audio'));
 
-  const httpServer = createServer(app);
-  return httpServer;
+  return createServer(app);
 }

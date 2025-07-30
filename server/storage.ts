@@ -57,6 +57,7 @@ import {
   challengeLeaderboards,
 
 } from "@shared/schema";
+import { supabaseClient } from './supabaseClient';
 import { db } from "./db";
 import { eq, desc, and, lte, sql } from "drizzle-orm";
 
@@ -172,8 +173,13 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations (mandatory for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return undefined;
+    }
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {

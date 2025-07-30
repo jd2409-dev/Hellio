@@ -8,7 +8,26 @@
     },
     {
       "src": "server/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "includeFiles": [
+        "server/ai-classroom-simple.py",
+        "server/ai-lesson-bot.py",
+        "server/ai-live-classroom.py",
+        "server/audio-lesson-simple.py",
+        "server/audio-web-interface.py",
+        "server/db.ts",
+        "server/gemini.ts",
+        "server/index.ts",
+        "server/replitAuth.ts",
+        "server/routes.ts",
+        "server/simple-lesson-audio.py",
+        "server/storage.ts",
+        "server/supabaseClient.ts",
+        "server/thumbnail-helper.js",
+        "server/vite.ts",
+        "server/web-audio-lesson.py",
+        "server/services/**"
+      ]}
     }
   ],
   "routes": [

@@ -1,382 +1,243 @@
-import React, { useState } from 'react'
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useToast } from '@/hooks/use-toast'
-import { AlertCircle, CheckCircle, Lock, Mail, User, LogOut, UserPlus, LogIn } from 'lucide-react'
-import SupabaseConnectionStatus from '@/components/supabase-connection-status'
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Brain, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 export default function SupabaseAuth() {
-  const { 
-    user, 
-    session, 
-    loading, 
-    isAuthenticated, 
-    isConfigured, 
-    signIn, 
-    signUp, 
-    signOut, 
-    resetPassword 
-  } = useSupabaseAuth()
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    resetEmail: ''
-  })
-  const [formLoading, setFormLoading] = useState(false)
-  const { toast } = useToast()
+  const [, setLocation] = useLocation();
+  const { signIn, signUp, isAuthenticated, isConfigured, isLoading } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.email || !formData.password) {
-      toast({
-        title: "Validation Error",
-        description: "Email and password are required",
-        variant: "destructive"
-      })
-      return
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation('/dashboard');
     }
+  }, [isAuthenticated, setLocation]);
 
-    setFormLoading(true)
-    const { error } = await signIn(formData.email, formData.password)
-    
-    if (error) {
-      toast({
-        title: "Sign In Error",
-        description: error instanceof Error ? error.message : 'An error occurred during sign in',
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Successfully signed in!"
-      })
-      setFormData({ ...formData, email: '', password: '' })
-    }
-    setFormLoading(false)
-  }
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.email || !formData.password) {
-      toast({
-        title: "Validation Error",
-        description: "Email and password are required",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setFormLoading(true)
-    const { error } = await signUp(formData.email, formData.password, {
-      firstName: formData.firstName,
-      lastName: formData.lastName
-    })
-    
-    if (error) {
-      toast({
-        title: "Sign Up Error",
-        description: error instanceof Error ? error.message : 'An error occurred during sign up',
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Account created! Check your email for verification."
-      })
-      setFormData({ email: '', password: '', firstName: '', lastName: '', resetEmail: '' })
-    }
-    setFormLoading(false)
-  }
-
-  const handleSignOut = async () => {
-    const { error } = await signOut()
-    
-    if (error) {
-      toast({
-        title: "Sign Out Error",
-        description: error instanceof Error ? error.message : 'An error occurred during sign out',
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Successfully signed out!"
-      })
-    }
-  }
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.resetEmail) {
-      toast({
-        title: "Validation Error",
-        description: "Email is required",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setFormLoading(true)
-    const { error } = await resetPassword(formData.resetEmail)
-    
-    if (error) {
-      toast({
-        title: "Reset Password Error",
-        description: error instanceof Error ? error.message : 'An error occurred during password reset',
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Password reset email sent! Check your inbox."
-      })
-      setFormData({ ...formData, resetEmail: '' })
-    }
-    setFormLoading(false)
-  }
-
-  if (loading) {
+  if (!isConfigured) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Lock className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Supabase Authentication Demo</h1>
-      </div>
-
-      <SupabaseConnectionStatus />
-
-      {!isConfigured ? null : isAuthenticated ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              Welcome Back!
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <p className="font-medium text-green-800 dark:text-green-200 mb-2">
-                Successfully authenticated
-              </p>
-              <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                <p><strong>Email:</strong> {user?.email}</p>
-                <p><strong>User ID:</strong> {user?.id}</p>
-                <p><strong>Email Verified:</strong> {user?.email_confirmed_at ? 'Yes' : 'No'}</p>
-                <p><strong>Last Sign In:</strong> {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}</p>
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-slate-800/50 border-slate-700">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Brain className="h-8 w-8 text-white" />
             </div>
-            
-            <Button onClick={handleSignOut} variant="outline" className="w-full">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+            <CardTitle className="text-2xl text-white">Authentication Not Available</CardTitle>
+            <CardDescription className="text-slate-400">
+              Supabase authentication is not configured. Please contact the administrator.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => setLocation('/')} 
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+            >
+              Back to Home
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Authentication</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                <TabsTrigger value="reset">Reset Password</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="signin" className="space-y-4">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signin-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signin-email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="signin-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Your password"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={formLoading} className="w-full">
-                    <LogIn className="h-4 w-4 mr-2" />
-                    {formLoading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="signup-firstName">First Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signup-firstName"
-                          value={formData.firstName}
-                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                          placeholder="John"
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="signup-lastName">Last Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signup-lastName"
-                          value={formData.lastName}
-                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                          placeholder="Doe"
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Create a strong password"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={formLoading} className="w-full">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    {formLoading ? 'Creating account...' : 'Sign Up'}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="reset" className="space-y-4">
-                <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div>
-                    <Label htmlFor="reset-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="reset-email"
-                        type="email"
-                        value={formData.resetEmail}
-                        onChange={(e) => setFormData({ ...formData, resetEmail: e.target.value })}
-                        placeholder="your@email.com"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={formLoading} className="w-full">
-                    <Mail className="h-4 w-4 mr-2" />
-                    {formLoading ? 'Sending...' : 'Send Reset Email'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      )}
+      </div>
+    );
+  }
 
-      {/* API Examples */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Authentication API Examples</CardTitle>
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password, { firstName, lastName });
+        if (error) {
+          setError(error.message || 'Failed to create account');
+        } else {
+          setError('');
+          // Show success message or redirect
+          setLocation('/dashboard');
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          setError(error.message || 'Failed to sign in');
+        } else {
+          setError('');
+          setLocation('/dashboard');
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Brain className="h-8 w-8 text-white" />
+          </div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
+        <div className="absolute top-20 left-20 w-4 h-4 bg-emerald-500/30 rounded-full animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-2 h-2 bg-amber-500/30 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-40 left-1/4 w-6 h-6 bg-emerald-500/20 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-20 right-1/3 w-3 h-3 bg-amber-500/20 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+      </div>
+
+      <Card className="w-full max-w-md bg-slate-800/50 border-slate-700 backdrop-blur-sm relative z-10">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Brain className="h-8 w-8 text-white" />
+          </div>
+          <CardTitle className="text-2xl text-white">
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            {isSignUp 
+              ? 'Join NexusLearn AI and start your learning journey' 
+              : 'Sign in to continue your learning journey'
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-            <pre className="text-sm overflow-x-auto">
-{`// Import authentication hooks and services
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
-import { authService } from '@/lib/supabaseClient'
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignUp && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                      required={isSignUp}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                      required={isSignUp}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-slate-300">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-slate-300">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
-// Use in React components
-const { user, isAuthenticated, signIn, signOut } = useSupabaseAuth()
+            {error && (
+              <Alert className="bg-red-900/20 border-red-800 text-red-300">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-// Sign up a new user
-const { data, error } = await authService.signUp(
-  'user@example.com', 
-  'password123',
-  { firstName: 'John', lastName: 'Doe' }
-)
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-medium"
+            >
+              {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+            </Button>
+          </form>
 
-// Sign in existing user
-const { data, error } = await authService.signIn('user@example.com', 'password123')
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
+              className="text-emerald-400 hover:text-emerald-300 text-sm"
+            >
+              {isSignUp 
+                ? 'Already have an account? Sign in' 
+                : "Don't have an account? Sign up"
+              }
+            </button>
+          </div>
 
-// Sign out current user
-const { error } = await authService.signOut()
-
-// Reset password
-const { error } = await authService.resetPassword('user@example.com')
-
-// Get current user
-const { data, error } = await authService.getCurrentUser()
-
-// Listen to auth state changes
-authService.onAuthStateChange((event, session) => {
-  console.log('Auth event:', event, session)
-})`}
-            </pre>
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setLocation('/')}
+              className="text-slate-400 hover:text-slate-300 text-sm"
+            >
+              ← Back to Home
+            </button>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
